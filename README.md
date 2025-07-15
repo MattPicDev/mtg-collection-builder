@@ -125,6 +125,27 @@ The application is built with:
 - **jQuery**: JavaScript functionality
 - **Scryfall API**: Card data source
 
+### Running Tests
+
+The project includes comprehensive unit tests covering all major functionality:
+
+```bash
+# Install test dependencies (if not already installed)
+pip install -r requirements.txt
+
+# Run all tests
+python run_tests.py
+
+# Or run with pytest directly
+pytest test_app.py -v
+```
+
+The test suite covers:
+- **ScryfallAPI**: API calls, error handling, data filtering
+- **CollectionManager**: Card operations, CSV import/export, collection management  
+- **Flask Routes**: All endpoints, error conditions, file uploads
+- **Edge Cases**: Invalid data, API failures, malformed CSV files
+
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
@@ -174,6 +195,15 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
    - Implemented auto-save when reaching the end of a set
    - Added proper state management between cards
    - Enhanced user feedback with completion messages
+
+### Unit Testing Implementation
+7. **"Could you add unit tests for app.py? Don't do it yet; just let me know if you can." followed by "Yes, please do. Also, update the 'AI-Generated Project' section of the README to include this step."**
+   - Created comprehensive unit tests covering all major functionality
+   - Added test coverage for ScryfallAPI class (API calls, error handling, data filtering)
+   - Implemented CollectionManager tests (card operations, CSV import/export, collection management)
+   - Created Flask route tests (all endpoints, error conditions, file uploads)
+   - Added pytest configuration and test runner script
+   - Updated requirements.txt with testing dependencies (pytest, pytest-flask, pytest-mock)
 
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
