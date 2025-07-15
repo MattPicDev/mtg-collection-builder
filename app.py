@@ -260,6 +260,17 @@ def set_view(set_code: str):
     
     return render_template('set_view.html', cards=cards, set_info=set_info)
 
+@app.route('/set/<set_code>/rapid')
+def set_rapid_view(set_code: str):
+    """Rapid input mode for a specific set"""
+    cards = ScryfallAPI.get_set_cards(set_code)
+    set_info = next((s for s in ScryfallAPI.get_sets() if s['code'] == set_code), None)
+    
+    if not set_info:
+        return "Set not found", 404
+    
+    return render_template('rapid_view.html', cards=cards, set_info=set_info)
+
 @app.route('/api/add_card', methods=['POST'])
 def add_card():
     """API endpoint to add a card to collection"""

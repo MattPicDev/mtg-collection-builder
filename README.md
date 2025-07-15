@@ -5,6 +5,7 @@ A web-based tool for managing your Magic: The Gathering card collection. This to
 ## Features
 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
+- **Rapid input mode**: Keyboard-driven interface for lightning-fast collection entry
 - **Scryfall API integration**: Automatically fetches card data and images
 - **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers
 - **Collection import**: Upload existing CSV collections to quickly populate your data
@@ -47,12 +48,15 @@ A web-based tool for managing your Magic: The Gathering card collection. This to
 
 3. **Select a set** from the main page to start adding cards
 
-4. **Enter quantities** for each card you own:
-   - Use the number inputs to set quantities
-   - Check the "Foil" checkbox for foil versions
-   - Use keyboard shortcuts for faster entry
+4. **Choose your input method**:
+   - **Grid View**: See all cards at once with individual quantity inputs
+   - **Rapid Mode**: Lightning-fast keyboard-driven entry, one card at a time
 
-5. **Save your collection** when finished with a set
+5. **Enter quantities** for each card you own:
+   - **Grid View**: Use the number inputs and foil checkboxes
+   - **Rapid Mode**: Type numbers, press Space for foil, Enter to save and continue
+
+6. **Save your collection** when finished with a set
 
 6. **Import existing collections** (optional):
    - Go to the Import page
@@ -63,9 +67,18 @@ A web-based tool for managing your Magic: The Gathering card collection. This to
 
 ## Keyboard Shortcuts
 
-- **Ctrl+S**: Save collection (on set view page)
+### Grid View
+- **Ctrl+S**: Save collection
 - **Enter**: Move to next card input field
 - **Search boxes**: Filter sets and collection in real-time
+
+### Rapid Mode
+- **Type numbers**: Set quantity (automatically focused)
+- **Space**: Toggle foil status
+- **Enter**: Save current card and move to next
+- **Arrow Keys**: Navigate between cards manually
+- **Escape**: Clear current input
+- **Ctrl+S**: Save entire collection and finish
 
 ## CSV Import/Export Format
 
