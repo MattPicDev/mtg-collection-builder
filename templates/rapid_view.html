@@ -164,6 +164,11 @@ function showCard(index) {
     updateProgress();
     updateNavigationButtons();
     focusInput();
+    
+    // Update keyboard handler state for new card
+    if (window.updateCardState) {
+        window.updateCardState();
+    }
 }
 
 function getRarityBadgeClass(rarity) {
@@ -194,6 +199,15 @@ function setupKeyboardHandlers() {
     let currentQuantity = '';
     let isFoil = false;
     
+    // Initialize state for current card
+    function initializeCardState() {
+        const card = cardData[currentCardIndex];
+        const existingData = collectedData[card.id] || { quantity: 0, foil: false };
+        currentQuantity = existingData.quantity > 0 ? existingData.quantity.toString() : '';
+        isFoil = existingData.foil;
+        updateDisplays(currentQuantity, isFoil);
+    }
+    
     document.addEventListener('keydown', function(e) {
         if (isProcessing) return;
         
@@ -209,6 +223,15 @@ function setupKeyboardHandlers() {
             case 'Enter':
                 e.preventDefault();
                 saveCurrentCard();
+                // Auto-advance to next card or finish if at end
+                if (currentCardIndex < cardData.length - 1) {
+                    showCard(currentCardIndex + 1);
+                } else {
+                    // Show completion message briefly before auto-saving
+                    alert(`Completed all ${cardData.length} cards! Saving collection...`);
+                    // Reached the end, auto-save and finish
+                    saveAndFinish();
+                }
                 break;
                 
             case ' ':
@@ -256,13 +279,6 @@ function setupKeyboardHandlers() {
         }
     });
     
-    // Initialize displays
-    const card = cardData[currentCardIndex];
-    const existingData = collectedData[card.id] || { quantity: 0, foil: false };
-    currentQuantity = existingData.quantity > 0 ? existingData.quantity.toString() : '';
-    isFoil = existingData.foil;
-    updateDisplays(currentQuantity, isFoil);
-    
     function updateDisplays(quantity, foil) {
         document.getElementById('quantityDisplay').value = quantity || '0';
         document.getElementById('foilDisplay').checked = foil;
@@ -288,6 +304,14 @@ function setupKeyboardHandlers() {
         currentQuantity = '';
         isFoil = false;
     }
+    
+    // Expose function to update state when card changes
+    window.updateCardState = function() {
+        initializeCardState();
+    };
+    
+    // Initialize for first card
+    initializeCardState();
 }
 
 function focusInput() {
