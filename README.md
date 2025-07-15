@@ -123,6 +123,51 @@ This project is open source and available under the [MIT License](LICENSE).
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## AI-Generated Project
+
+This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) through a series of conversational prompts. Below is the complete prompt history that created this tool:
+
+### Initial Project Creation
+1. **"I want to create a tool that will allow me to quickly generate a file containing my Magic the Gathering card collection. The file should use a standard format that can be imported into popular collection tracker websites. The tool should run as a local web server. You can use the language and libraries of your choice. Create the project as a git repo under the D:\repos directory on my machine. Ask me clarifying questions."**
+   - Created the basic project structure with Flask
+   - Set up Python environment and dependencies
+   - Implemented Scryfall API integration
+   - Created CSV export functionality compatible with MTGGoldfish/Deckbox
+
+### Filtering Improvements
+2. **"The list of available sets is too small, and it's not specific to Magic the Gathering. Could you filter the sets to Magic the Gathering expansions, and increase the number of sets displayed?"**
+   - Enhanced set filtering to focus on MTG expansions
+   - Added type and year filters to the UI
+   - Improved search functionality with multiple filter options
+
+### Import Functionality
+3. **"Add the ability to import a collection, using the same format that you already support for export."**
+   - Created CSV import functionality
+   - Added smart card lookup using Scryfall API
+   - Implemented error handling and progress reporting
+   - Added option to replace or merge collections
+
+### Rapid Input Mode
+4. **"I want to add another input mode. After selecting a set, I want to be able to rapidly type in a number of cards. It should work like this: 1. Present a card to the user. [followed by] Let me restate the features: 1. Present the card to the user. 2. The user can type a number, without having to click on a control. 3. If the user presses space, the card is selected as a foil. 4. When the user hits enter, save the number of cards and move to the next card. 5. If the user hits enter without entering a number, treat it as zero."**
+   - Built keyboard-driven rapid input interface
+   - Implemented automatic focus management
+   - Added space bar for foil toggle functionality
+   - Created one-card-at-a-time workflow with progress tracking
+
+### Documentation Request
+5. **"I would like to tell users who look at the README how this program was generated using prompts. Could you add a section to the readme that documents the set of prompts that I provided to you since we started? Include which model was used as well."**
+   - Added this documentation section
+
+### Key Features Developed
+- **Python Flask web application** with responsive Bootstrap UI
+- **Scryfall API integration** for real-time MTG card data
+- **Dual input modes**: Grid view and rapid keyboard-driven entry
+- **CSV import/export** compatible with major collection trackers
+- **Real-time progress tracking** and collection management
+- **Comprehensive error handling** and user feedback
+
+The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, and managing git commits. No manual coding was required - everything was generated from the prompts above.
+
 ## Support
 
 If you encounter any issues or have questions, please open an issue on the GitHub repository.
