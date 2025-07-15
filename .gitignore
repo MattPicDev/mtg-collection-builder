@@ -131,3 +131,6 @@ dmypy.json
 # Collection exports
 *.csv
 mtg_collection.csv
+
+# VS Code settings (user-specific)
+.vscode/
