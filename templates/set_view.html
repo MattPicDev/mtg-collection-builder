@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}{{ set_info.name }} - MTG Collection Tool{% endblock %}
+
+{% block content %}
+<div class="progress-section">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>
+                {% if set_info.icon_svg_uri %}
+                <img src="{{ set_info.icon_svg_uri }}" alt="{{ set_info.name }}" style="width: 32px; height: 32px; margin-right: 10px;">
+                {% endif %}
+                {{ set_info.name }}
+                <small class="text-muted">({{ set_info.code|upper }})</small>
+            </h2>
+        </div>
+        <div class="col-md-4">
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar">
+                    <span id="progressText">0 / {{ cards|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-2">
+        <div class="col-md-6">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary" onclick="setAllQuantities(0)">
+                    <i class="fas fa-times"></i> Clear All
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setAllQuantities(1)">
+                    <i class="fas fa-plus"></i> Add 1 Each
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="setAllQuantities(4)">
+                    <i class="fas fa-plus"></i> Add 4 Each
+                </button>
+            </div>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Sets
+            </a>
+            <button type="button" class="btn btn-success" onclick="saveCollection()">
+                <i class="fas fa-save"></i> Save Collection
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="row" id="cardsContainer">
+            {% for card in cards %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card">
+                    <div class="row g-0">
+                        <div class="col-4">
+                            {% if card.image_uris and card.image_uris.small %}
+                            <img src="{{ card.image_uris.small }}" class="card-image" alt="{{ card.name }}">
+                            {% else %}
+                            <div class="card-image bg-light d-flex align-items-center justify-content-center">
+                                <i class="fas fa-image text-muted"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-8">
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1">{{ card.name }}</h6>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        #{{ card.collector_number }}<br>
+                                        {{ card.rarity|title }}<br>
+                                        {% if card.mana_cost %}{{ card.mana_cost }}{% endif %}
+                                    </small>
+                                </p>
+                                
+                                <div class="d-flex align-items-center">
+                                    <input type="number" 
+                                           class="form-control quantity-input" 
+                                           min="0" 
+                                           max="99" 
+                                           value="0"
+                                           data-card-id="{{ card.id }}"
+                                           onchange="updateProgress()"
+                                           onkeyup="if(event.key === 'Enter') { this.nextElementSibling.nextElementSibling.focus() }">
+                                    
+                                    <label class="foil-checkbox">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               data-card-id="{{ card.id }}"
+                                               data-foil="true"> 
+                                        <small>Foil</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="cardData">
+{{ cards | tojson }}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const cardData = JSON.parse(document.getElementById('cardData').textContent);
+let processedCards = 0;
+
+function updateProgress() {
+    const inputs = document.querySelectorAll('.quantity-input');
+    processedCards = 0;
+    
+    inputs.forEach(input => {
+        if (parseInt(input.value) > 0) {
+            processedCards++;
+        }
+    });
+    
+    const totalCards = cardData.length;
+    const percentage = (processedCards / totalCards) * 100;
+    
+    document.getElementById('progressBar').style.width = percentage + '%';
+    document.getElementById('progressText').textContent = `${processedCards} / ${totalCards}`;
+}
+
+function setAllQuantities(quantity) {
+    const inputs = document.querySelectorAll('.quantity-input');
+    inputs.forEach(input => {
+        input.value = quantity;
+    });
+    updateProgress();
+}
+
+function saveCollection() {
+    const inputs = document.querySelectorAll('.quantity-input');
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    const promises = [];
+    
+    inputs.forEach(input => {
+        const quantity = parseInt(input.value);
+        if (quantity > 0) {
+            const cardId = input.getAttribute('data-card-id');
+            const card = cardData.find(c => c.id === cardId);
+            
+            // Check for foil version
+            const foilCheckbox = document.querySelector(`input[type="checkbox"][data-card-id="${cardId}"]`);
+            const foil = foilCheckbox ? foilCheckbox.checked : false;
+            
+            if (card) {
+                promises.push(
+                    fetch('/api/add_card', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            card: card,
+                            quantity: quantity,
+                            foil: foil
+                        })
+                    })
+                );
+            }
+        }
+    });
+    
+    Promise.all(promises).then(() => {
+        alert('Collection saved successfully!');
+        window.location.href = '/collection';
+    }).catch(error => {
+        console.error('Error saving collection:', error);
+        alert('Error saving collection. Please try again.');
+    });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+        saveCollection();
+    }
+});
+
+// Initialize progress
+updateProgress();
+</script>
+{% endblock %}

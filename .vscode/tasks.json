@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start MTG Collection Tool",
+			"type": "shell",
+			"command": "C:/Users/mopic/AppData/Local/Programs/Python/Python313/python.exe",
+			"args": [
+				"app.py"
+			],
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

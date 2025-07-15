@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}My Collection - MTG Collection Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>My MTG Collection</h1>
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-layer-group"></i> Total Cards
+                        </h5>
+                        <h3>{{ summary.total_cards }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-star"></i> Unique Cards
+                        </h5>
+                        <h3>{{ summary.unique_cards }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-book"></i> Sets
+                        </h5>
+                        <h3>{{ summary.sets_represented }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <input type="text" id="collectionSearch" class="form-control" placeholder="Search your collection..." onkeyup="filterCollection()">
+            </div>
+            <div class="col-md-6 text-end">
+                <a href="/export" class="btn btn-success">
+                    <i class="fas fa-download"></i> Export CSV
+                </a>
+                <a href="/" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add More Cards
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if collection %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Card</th>
+                        <th>Set</th>
+                        <th>Number</th>
+                        <th>Quantity</th>
+                        <th>Foil</th>
+                        <th>Rarity</th>
+                        <th>Condition</th>
+                    </tr>
+                </thead>
+                <tbody id="collectionTableBody">
+                    {% for key, card in collection.items() %}
+                    {% if card.quantity > 0 %}
+                    <tr class="collection-row" data-card-name="{{ card.name|lower }}" data-set-name="{{ card.set_name|lower }}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                {% if card.image_url %}
+                                <img src="{{ card.image_url }}" alt="{{ card.name }}" style="width: 40px; height: auto; margin-right: 10px; border-radius: 4px;">
+                                {% endif %}
+                                <strong>{{ card.name }}</strong>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ card.set }}</span><br>
+                            <small class="text-muted">{{ card.set_name }}</small>
+                        </td>
+                        <td>{{ card.collector_number }}</td>
+                        <td>
+                            <span class="badge bg-primary">{{ card.quantity }}</span>
+                        </td>
+                        <td>
+                            {% if card.foil %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-star"></i> Foil
+                            </span>
+                            {% else %}
+                            <span class="text-muted">Regular</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if card.rarity == 'mythic' %}bg-danger
+                                {% elif card.rarity == 'rare' %}bg-warning
+                                {% elif card.rarity == 'uncommon' %}bg-info
+                                {% else %}bg-secondary
+                                {% endif %}">
+                                {{ card.rarity|title }}
+                            </span>
+                        </td>
+                        <td>{{ card.condition }}</td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <h4><i class="fas fa-info-circle"></i> No cards in collection</h4>
+            <p>Your collection is empty. <a href="/">Start adding cards</a> by selecting a set!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterCollection() {
+    const search = document.getElementById('collectionSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('.collection-row');
+    
+    rows.forEach(row => {
+        const cardName = row.getAttribute('data-card-name');
+        const setName = row.getAttribute('data-set-name');
+        
+        if (cardName.includes(search) || setName.includes(search)) {
+            row.style.display = 'table-row';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}
