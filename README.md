@@ -2,6 +2,16 @@
 
 A web-based tool for managing your Magic: The Gathering card collection. This tool provides a streamlined workflow for entering your collection set by set and exports to CSV format compatible with popular collection tracking sites like MTGGoldfish and Deckbox.
 
+## Notes about AI Generation
+
+I have been adding lots of cards from my old MTG collection, and I found popular websites very slow for this purpose.  As an experiment, I wanted to let Copilot create this app for me, using the language and libraries of its choice.  This project might have taken me an evening, but it probably would have taken me several evenings on my own.  Copilot did this in about a half hour of back-and-forth.
+
+This project was purely vibe-generated within Visual Studio Code, using the default Claude model option within Copilot.  No code changes were made by humans; this README section was the only modification.  In fact, it even told me how I could add this section without worrying about Copilot overwriting it.
+
+I am not very experienced with Python, much less Flask or the related libraries.  However, I was able to follow it, and Copilot was able to explain it as well.
+
+I have intentionally not added any statefulness to this application, to make it easily transportable.
+
 ## Features
 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
