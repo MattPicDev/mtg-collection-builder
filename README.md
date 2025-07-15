@@ -6,11 +6,13 @@ A web-based tool for managing your Magic: The Gathering card collection. This to
 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
 - **Scryfall API integration**: Automatically fetches card data and images
-- **CSV export**: Compatible with MTGGoldfish, Deckbox, and other collection trackers
+- **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers
+- **Collection import**: Upload existing CSV collections to quickly populate your data
 - **Responsive web interface**: Works on desktop and mobile devices
 - **Real-time progress tracking**: See your progress as you add cards
 - **Search and filter**: Quickly find specific sets or cards
 - **Foil tracking**: Track both regular and foil versions of cards
+- **Collection management**: Clear, replace, or merge collections
 
 ## Installation
 
@@ -52,7 +54,12 @@ A web-based tool for managing your Magic: The Gathering card collection. This to
 
 5. **Save your collection** when finished with a set
 
-6. **Export to CSV** from the collection page when ready
+6. **Import existing collections** (optional):
+   - Go to the Import page
+   - Upload a CSV file in the supported format
+   - Choose whether to replace or add to your existing collection
+
+7. **Export to CSV** from the collection page when ready
 
 ## Keyboard Shortcuts
 
@@ -60,9 +67,9 @@ A web-based tool for managing your Magic: The Gathering card collection. This to
 - **Enter**: Move to next card input field
 - **Search boxes**: Filter sets and collection in real-time
 
-## CSV Export Format
+## CSV Import/Export Format
 
-The exported CSV includes the following columns:
+The CSV format includes the following columns:
 - Name
 - Set (3-letter code)
 - Collector Number
@@ -75,6 +82,12 @@ This format is compatible with:
 - MTGGoldfish
 - Deckbox
 - Most other collection tracking sites
+
+### Import Features
+- **Smart card lookup**: Uses Scryfall API to verify card details
+- **Error reporting**: Shows which cards couldn't be imported
+- **Flexible options**: Choose to replace or merge with existing collection
+- **Progress tracking**: Real-time feedback during import process
 
 ## API Integration
 

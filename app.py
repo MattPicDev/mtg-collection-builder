@@ -135,6 +135,110 @@ class CollectionManager:
             'unique_cards': total_unique,
             'sets_represented': len(set(card['set'] for card in self.collection.values() if card['quantity'] > 0))
         }
+    
+    def import_from_csv(self, csv_content: str) -> Dict:
+        """Import collection from CSV format"""
+        imported_count = 0
+        errors = []
+        
+        try:
+            # Parse CSV content
+            csv_file = io.StringIO(csv_content)
+            reader = csv.DictReader(csv_file)
+            
+            for row_num, row in enumerate(reader, start=2):  # Start at 2 because of header
+                try:
+                    name = row.get('Name', '').strip()
+                    set_code = row.get('Set', '').strip().lower()
+                    collector_number = row.get('Collector Number', '').strip()
+                    quantity = int(row.get('Quantity', 0))
+                    foil = row.get('Foil', '').strip().lower() in ['yes', 'true', '1']
+                    condition = row.get('Condition', 'Near Mint').strip()
+                    language = row.get('Language', 'English').strip()
+                    
+                    if not name or not set_code or quantity <= 0:
+                        continue  # Skip invalid rows
+                    
+                    # Try to find the card via Scryfall API
+                    card_data = self._find_card_by_details(name, set_code, collector_number)
+                    
+                    if card_data:
+                        # Create collection entry
+                        card_id = card_data['id']
+                        key = f"{card_id}_{foil}"
+                        
+                        self.collection[key] = {
+                            'name': name,
+                            'set': set_code.upper(),
+                            'set_name': card_data.get('set_name', ''),
+                            'collector_number': collector_number,
+                            'quantity': quantity,
+                            'foil': foil,
+                            'condition': condition,
+                            'language': language,
+                            'rarity': card_data.get('rarity', 'unknown'),
+                            'image_url': card_data.get('image_uris', {}).get('small', '')
+                        }
+                        imported_count += 1
+                    else:
+                        errors.append(f"Row {row_num}: Could not find card '{name}' in set '{set_code}'")
+                        
+                except (ValueError, KeyError) as e:
+                    errors.append(f"Row {row_num}: Invalid data format - {str(e)}")
+                    
+        except Exception as e:
+            errors.append(f"CSV parsing error: {str(e)}")
+        
+        return {
+            'imported_count': imported_count,
+            'errors': errors,
+            'success': imported_count > 0
+        }
+    
+    def _find_card_by_details(self, name: str, set_code: str, collector_number: str) -> Optional[Dict]:
+        """Find a card using Scryfall API by name, set, and collector number"""
+        try:
+            # First try exact search with collector number
+            if collector_number:
+                response = requests.get(
+                    f"{ScryfallAPI.BASE_URL}/cards/{set_code}/{collector_number}"
+                )
+                if response.status_code == 200:
+                    card_data = response.json()
+                    # Verify the name matches (case-insensitive)
+                    if card_data['name'].lower() == name.lower():
+                        return card_data
+            
+            # Fallback: search by name and set
+            response = requests.get(
+                f"{ScryfallAPI.BASE_URL}/cards/named",
+                params={
+                    'exact': name,
+                    'set': set_code
+                }
+            )
+            if response.status_code == 200:
+                return response.json()
+                
+            # Last resort: fuzzy search
+            response = requests.get(
+                f"{ScryfallAPI.BASE_URL}/cards/named",
+                params={
+                    'fuzzy': name,
+                    'set': set_code
+                }
+            )
+            if response.status_code == 200:
+                return response.json()
+                
+        except requests.RequestException:
+            pass
+        
+        return None
+    
+    def clear_collection(self):
+        """Clear the entire collection"""
+        self.collection = {}
 
 # Global collection manager
 collection_manager = CollectionManager()
@@ -193,6 +297,41 @@ def export_collection():
         as_attachment=True,
         download_name='mtg_collection.csv'
     )
+
+@app.route('/import', methods=['GET', 'POST'])
+def import_collection():
+    """Import collection from CSV file"""
+    if request.method == 'GET':
+        return render_template('import.html')
+    
+    # Handle file upload
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not file.filename.lower().endswith('.csv'):
+        return jsonify({'error': 'Please upload a CSV file'}), 400
+    
+    try:
+        # Read and decode the file content
+        csv_content = file.read().decode('utf-8')
+        
+        # Import the collection
+        result = collection_manager.import_from_csv(csv_content)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+
+@app.route('/api/clear_collection', methods=['POST'])
+def clear_collection():
+    """API endpoint to clear the entire collection"""
+    collection_manager.clear_collection()
+    return jsonify({'status': 'success', 'message': 'Collection cleared'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)
