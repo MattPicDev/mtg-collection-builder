@@ -21,8 +21,25 @@ class ScryfallAPI:
             response.raise_for_status()
             data = response.json()
             
-            # Filter for relevant sets and sort by release date (newest first)
-            sets = [s for s in data['data'] if s['set_type'] not in ['token', 'memorabilia']]
+            # Filter for Magic: The Gathering expansions and relevant sets
+            # Include main expansions, core sets, masters sets, commander sets, etc.
+            # Exclude tokens, art series, memorabilia, and other non-playable sets
+            relevant_set_types = [
+                'core', 'expansion', 'masters', 'commander', 'planechase', 
+                'archenemy', 'from_the_vault', 'spellbook', 'premium_deck',
+                'duel_deck', 'draft_innovation', 'treasure_chest', 'arsenal',
+                'box', 'funny', 'starter', 'supplemental'
+            ]
+            
+            sets = []
+            for s in data['data']:
+                # Filter by set type and ensure it has cards
+                if (s['set_type'] in relevant_set_types and 
+                    s.get('card_count', 0) > 0 and
+                    s['set_type'] not in ['token', 'memorabilia', 'art_series']):
+                    sets.append(s)
+            
+            # Sort by release date (newest first)
             sets.sort(key=lambda x: x['released_at'], reverse=True)
             
             return sets
@@ -126,7 +143,7 @@ collection_manager = CollectionManager()
 def index():
     """Main page - show set selection"""
     sets = ScryfallAPI.get_sets()
-    return render_template('index.html', sets=sets[:50])  # Show first 50 sets
+    return render_template('index.html', sets=sets)  # Show all filtered sets
 
 @app.route('/set/<set_code>')
 def set_view(set_code: str):

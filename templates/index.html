@@ -8,21 +8,56 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-4 mb-3">
-        <input type="text" id="setSearch" class="form-control" placeholder="Search sets..." onkeyup="filterSets()">
+<div class="row mb-3">
+    <div class="col-md-6 mb-3">
+        <input type="text" id="setSearch" class="form-control" placeholder="Search sets by name or code..." onkeyup="filterSets()">
     </div>
+    <div class="col-md-3 mb-3">
+        <select id="setTypeFilter" class="form-select" onchange="filterSets()">
+            <option value="">All Set Types</option>
+            <option value="core">Core Sets</option>
+            <option value="expansion">Expansions</option>
+            <option value="masters">Masters Sets</option>
+            <option value="commander">Commander</option>
+            <option value="supplemental">Supplemental</option>
+            <option value="funny">Un-sets</option>
+        </select>
+    </div>
+    <div class="col-md-3 mb-3">
+        <select id="yearFilter" class="form-select" onchange="filterSets()">
+            <option value="">All Years</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+            <option value="2021">2021</option>
+            <option value="2020">2020</option>
+            <option value="2019">2019</option>
+            <option value="older">2018 and older</option>
+        </select>
+    </div>
+</div>
+
+<div class="row mb-3">
     <div class="col-md-8">
         <div class="alert alert-info">
             <i class="fas fa-info-circle"></i>
-            Click on a set to view its cards and add them to your collection. Use the search box to quickly find specific sets.
+            Showing <span id="setCount">{{ sets|length }}</span> Magic: The Gathering sets. 
+            Click on a set to view its cards and add them to your collection.
         </div>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-outline-secondary" onclick="showAll()">Show All Sets</button>
+        <button class="btn btn-outline-secondary" onclick="showRecent()">Recent Sets Only</button>
     </div>
 </div>
 
 <div class="row" id="setsContainer">
     {% for set in sets %}
-    <div class="col-md-4 col-lg-3 mb-4 set-item" data-set-name="{{ set.name|lower }}" data-set-code="{{ set.code|lower }}">
+    <div class="col-md-4 col-lg-3 mb-4 set-item" 
+         data-set-name="{{ set.name|lower }}" 
+         data-set-code="{{ set.code|lower }}"
+         data-set-type="{{ set.set_type }}"
+         data-year="{{ set.released_at[:4] }}">
         <div class="card set-card h-100">
             {% if set.icon_svg_uri %}
             <div class="card-header text-center">
@@ -34,6 +69,7 @@
                 <p class="card-text">
                     <small class="text-muted">
                         Code: {{ set.code|upper }}<br>
+                        Type: {{ set.set_type|title|replace('_', ' ') }}<br>
                         Released: {{ set.released_at }}<br>
                         Cards: {{ set.card_count }}
                     </small>
@@ -46,24 +82,85 @@
     </div>
     {% endfor %}
 </div>
+
+<div id="noResultsMessage" class="alert alert-warning" style="display: none;">
+    <i class="fas fa-search"></i> No sets match your current filters. Try adjusting your search criteria.
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 function filterSets() {
     const search = document.getElementById('setSearch').value.toLowerCase();
+    const typeFilter = document.getElementById('setTypeFilter').value;
+    const yearFilter = document.getElementById('yearFilter').value;
     const setItems = document.querySelectorAll('.set-item');
+    let visibleCount = 0;
     
     setItems.forEach(item => {
         const setName = item.getAttribute('data-set-name');
         const setCode = item.getAttribute('data-set-code');
+        const setType = item.getAttribute('data-set-type');
+        const setYear = item.getAttribute('data-year');
         
-        if (setName.includes(search) || setCode.includes(search)) {
+        let show = true;
+        
+        // Text search filter
+        if (search && !(setName.includes(search) || setCode.includes(search))) {
+            show = false;
+        }
+        
+        // Set type filter
+        if (typeFilter && setType !== typeFilter) {
+            show = false;
+        }
+        
+        // Year filter
+        if (yearFilter) {
+            if (yearFilter === 'older') {
+                if (parseInt(setYear) >= 2019) {
+                    show = false;
+                }
+            } else if (setYear !== yearFilter) {
+                show = false;
+            }
+        }
+        
+        if (show) {
             item.style.display = 'block';
+            visibleCount++;
         } else {
             item.style.display = 'none';
         }
     });
+    
+    // Update count and show/hide no results message
+    document.getElementById('setCount').textContent = visibleCount;
+    const noResultsMsg = document.getElementById('noResultsMessage');
+    if (visibleCount === 0) {
+        noResultsMsg.style.display = 'block';
+    } else {
+        noResultsMsg.style.display = 'none';
+    }
 }
+
+function showAll() {
+    document.getElementById('setSearch').value = '';
+    document.getElementById('setTypeFilter').value = '';
+    document.getElementById('yearFilter').value = '';
+    filterSets();
+}
+
+function showRecent() {
+    document.getElementById('setSearch').value = '';
+    document.getElementById('setTypeFilter').value = '';
+    document.getElementById('yearFilter').value = '2024';
+    filterSets();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    filterSets(); // Initial count
+});
 </script>
 {% endblock %}
