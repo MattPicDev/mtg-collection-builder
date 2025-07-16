@@ -341,6 +341,57 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertIn(b'Card #', response.data)
         self.assertIn(b'Name', response.data)
     
+    @patch('app.ScryfallAPI.get_set_cards')
+    @patch('app.ScryfallAPI.get_sets')
+    def test_set_rapid_view_route(self, mock_get_sets, mock_get_set_cards):
+        """Test rapid view route with sorting functionality"""
+        mock_get_sets.return_value = [
+            {
+                'code': 'neo', 
+                'name': 'Kamigawa: Neon Dynasty', 
+                'set_type': 'expansion',
+                'released_at': '2022-02-18',
+                'card_count': 300
+            }
+        ]
+        mock_get_set_cards.return_value = [
+            {
+                'id': 'card1', 
+                'name': 'Lightning Bolt', 
+                'collector_number': '1',
+                'rarity': 'common',
+                'mana_cost': '{R}',
+                'set_name': 'Kamigawa: Neon Dynasty',
+                'image_uris': {'normal': 'http://example.com/card1.jpg'}
+            },
+            {
+                'id': 'card2', 
+                'name': 'Counterspell', 
+                'collector_number': '2',
+                'rarity': 'common',
+                'mana_cost': '{1}{U}',
+                'set_name': 'Kamigawa: Neon Dynasty',
+                'image_uris': {'normal': 'http://example.com/card2.jpg'}
+            }
+        ]
+        
+        response = self.app.get('/set/neo/rapid')
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Lightning Bolt', response.data)
+        self.assertIn(b'Counterspell', response.data)
+        self.assertIn(b'Rapid Input Mode', response.data)
+        # Check for sorting buttons
+        self.assertIn(b'sortByNumber', response.data)
+        self.assertIn(b'sortByName', response.data)
+        self.assertIn(b'Card #', response.data)
+        self.assertIn(b'Name', response.data)
+        # Check for rapid input instructions
+        self.assertIn(b'Rapid Input Controls', response.data)
+        self.assertIn(b'Type a number', response.data)
+        self.assertIn(b'Space', response.data)
+        self.assertIn(b'Enter', response.data)
+
     def test_set_view_not_found(self):
         """Test set view with invalid set code"""
         response = self.app.get('/set/invalid')
