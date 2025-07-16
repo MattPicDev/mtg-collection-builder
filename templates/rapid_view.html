@@ -19,14 +19,7 @@
                             </h5>
                             <small class="text-muted">{{ set_info.code|upper }} - Rapid Input Mode</small>
                         </div>
-                        <div class="col-md-4">
-                            <div class="progress">
-                                <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar">
-                                    <span id="progressText">0 / {{ cards|length }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-5 text-end">
+                        <div class="col-md-9 text-end">
                             <div class="btn-group me-2" role="group">
                                 <button type="button" class="btn btn-outline-primary active" id="sortByNumber" onclick="sortCards('number')">
                                     <i class="fas fa-sort-numeric-down"></i> Card #
@@ -64,6 +57,17 @@
             <div class="card shadow-lg" id="cardDisplay">
                 <div class="card-body p-4">
                     <!-- Card will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="row justify-content-center mt-3">
+        <div class="col-lg-8 col-xl-6">
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar">
+                    <span id="progressText">0 / {{ cards|length }}</span>
                 </div>
             </div>
         </div>
