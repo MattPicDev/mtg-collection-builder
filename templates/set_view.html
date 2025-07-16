@@ -159,95 +159,63 @@ function sortCards(sortType) {
     // Update button states
     document.getElementById('sortByNumber').classList.remove('active');
     document.getElementById('sortByName').classList.remove('active');
-    document.getElementById('sortBy' + (sortType === 'number' ? 'Number' : 'Name')).classList.add('active');
+    const activeButton = document.getElementById('sortBy' + (sortType === 'number' ? 'Number' : 'Name'));
+    activeButton.classList.add('active');
     
-    // Get current input values to preserve them
-    const currentValues = {};
-    const inputs = document.querySelectorAll('.quantity-input');
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    
-    inputs.forEach(input => {
-        const cardId = input.getAttribute('data-card-id');
-        currentValues[cardId] = {
-            quantity: input.value,
-            foil: document.querySelector(`input[type="checkbox"][data-card-id="${cardId}"]`)?.checked || false
-        };
-    });
-    
-    // Sort the card data
-    let sortedCards = [...cardData];
-    if (sortType === 'name') {
-        sortedCards.sort((a, b) => a.name.localeCompare(b.name));
-    } else {
-        // Sort by collector number (handle mixed numeric/text)
-        sortedCards.sort((a, b) => {
-            const aNum = parseInt(a.collector_number) || 0;
-            const bNum = parseInt(b.collector_number) || 0;
-            if (aNum !== bNum) {
-                return aNum - bNum;
-            }
-            return a.collector_number.localeCompare(b.collector_number);
-        });
-    }
-    
-    // Rebuild the cards container
+    // Add brief loading state
     const container = document.getElementById('cardsContainer');
-    container.innerHTML = '';
+    container.style.opacity = '0.7';
+    container.style.transition = 'opacity 0.2s';
     
-    sortedCards.forEach(card => {
-        const cardHtml = `
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card">
-                    <div class="row g-0">
-                        <div class="col-4">
-                            ${card.image_uris && card.image_uris.small ? 
-                                `<img src="${card.image_uris.small}" class="card-image" alt="${card.name}">` :
-                                `<div class="card-image bg-light d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-image text-muted"></i>
-                                </div>`
-                            }
-                        </div>
-                        <div class="col-8">
-                            <div class="card-body p-2">
-                                <h6 class="card-title mb-1">${card.name}</h6>
-                                <p class="card-text">
-                                    <small class="text-muted">
-                                        #${card.collector_number}<br>
-                                        ${card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1)}<br>
-                                        ${card.mana_cost || ''}
-                                    </small>
-                                </p>
-                                
-                                <div class="d-flex align-items-center">
-                                    <input type="number" 
-                                           class="form-control quantity-input" 
-                                           min="0" 
-                                           max="99" 
-                                           value="${currentValues[card.id]?.quantity || 0}"
-                                           data-card-id="${card.id}"
-                                           onchange="updateProgress()"
-                                           onkeyup="if(event.key === 'Enter') { this.nextElementSibling.nextElementSibling.focus() }">
-                                    
-                                    <label class="foil-checkbox">
-                                        <input type="checkbox" 
-                                               class="form-check-input" 
-                                               data-card-id="${card.id}"
-                                               data-foil="true"
-                                               ${currentValues[card.id]?.foil ? 'checked' : ''}> 
-                                        <small>Foil</small>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        container.innerHTML += cardHtml;
+    // Use requestAnimationFrame for smooth animation
+    requestAnimationFrame(() => {
+        // Get all existing card elements
+        const cardElements = Array.from(container.children);
+        
+        // Create a map of card ID to DOM element for fast lookup
+        const cardElementMap = {};
+        cardElements.forEach(element => {
+            const input = element.querySelector('.quantity-input');
+            if (input) {
+                const cardId = input.getAttribute('data-card-id');
+                cardElementMap[cardId] = element;
+            }
+        });
+        
+        // Sort the card data (same logic as before)
+        let sortedCards = [...cardData];
+        if (sortType === 'name') {
+            sortedCards.sort((a, b) => a.name.localeCompare(b.name));
+        } else {
+            // Sort by collector number (handle mixed numeric/text)
+            sortedCards.sort((a, b) => {
+                const aNum = parseInt(a.collector_number) || 0;
+                const bNum = parseInt(b.collector_number) || 0;
+                if (aNum !== bNum) {
+                    return aNum - bNum;
+                }
+                return a.collector_number.localeCompare(b.collector_number);
+            });
+        }
+        
+        // Use DocumentFragment for efficient DOM manipulation
+        const fragment = document.createDocumentFragment();
+        
+        // Append elements in the new order
+        sortedCards.forEach(card => {
+            const element = cardElementMap[card.id];
+            if (element) {
+                fragment.appendChild(element);
+            }
+        });
+        
+        // Clear container and add all elements at once
+        container.innerHTML = '';
+        container.appendChild(fragment);
+        
+        // Restore opacity
+        container.style.opacity = '1';
     });
-    
-    // Update progress after rebuilding
-    updateProgress();
 }
 
 function saveCollection() {
