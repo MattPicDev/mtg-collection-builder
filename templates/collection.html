@@ -8,7 +8,7 @@
         <h1>My MTG Collection</h1>
         
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-primary text-white">
                     <div class="card-body">
                         <h5 class="card-title">
@@ -18,7 +18,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-success text-white">
                     <div class="card-body">
                         <h5 class="card-title">
@@ -28,13 +28,24 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card bg-info text-white">
                     <div class="card-body">
                         <h5 class="card-title">
                             <i class="fas fa-book"></i> Sets
                         </h5>
                         <h3>{{ summary.sets_represented }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-dollar-sign"></i> Est. Value
+                        </h5>
+                        <h3>${{ "%.2f"|format(summary.total_value) }}</h3>
+                        <small>{{ summary.priced_cards }} cards priced</small>
                     </div>
                 </div>
             </div>
@@ -83,6 +94,8 @@
                         <th>Foil</th>
                         <th>Rarity</th>
                         <th>Condition</th>
+                        <th>Price</th>
+                        <th>Total Value</th>
                     </tr>
                 </thead>
                 <tbody id="collectionTableBody">
@@ -125,6 +138,27 @@
                             </span>
                         </td>
                         <td>{{ card.condition }}</td>
+                        <td>
+                            {% if card.price_usd %}
+                            <span class="text-success">
+                                <i class="fas fa-dollar-sign"></i> {{ card.price_usd }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if card.price_usd %}
+                            <span class="text-success">
+                                <strong>
+                                    <i class="fas fa-dollar-sign"></i> 
+                                    {{ "%.2f"|format(card.price_usd|float * card.quantity) }}
+                                </strong>
+                            </span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endif %}
                     {% endfor %}

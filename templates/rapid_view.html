@@ -218,6 +218,7 @@ function showCard(index) {
                     <div class="col-sm-6">
                         ${card.mana_cost ? `<strong>Cost:</strong> ${card.mana_cost}<br>` : ''}
                         ${card.type_line ? `<strong>Type:</strong> ${card.type_line}<br>` : ''}
+                        ${card.prices && card.prices.usd ? `<strong>Price:</strong> <span class="text-success">$${card.prices.usd}${card.prices.usd_foil ? ' / $' + card.prices.usd_foil + ' foil' : ''}</span><br>` : ''}
                     </div>
                 </div>
                 

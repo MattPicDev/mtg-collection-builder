@@ -147,7 +147,13 @@
                                     <small class="text-muted">
                                         #{{ card.collector_number }}<br>
                                         {{ card.rarity|title }}<br>
-                                        {% if card.mana_cost %}{{ card.mana_cost }}{% endif %}
+                                        {% if card.mana_cost %}{{ card.mana_cost }}<br>{% endif %}
+                                        {% if card.prices and card.prices.usd %}
+                                            <span class="text-success">
+                                                <i class="fas fa-dollar-sign"></i> ${{ card.prices.usd }}
+                                                {% if card.prices.usd_foil %} / ${{ card.prices.usd_foil }} foil{% endif %}
+                                            </span>
+                                        {% endif %}
                                     </small>
                                 </p>
                                 

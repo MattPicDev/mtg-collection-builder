@@ -55,10 +55,22 @@ class BulkDataCache:
                 set_name TEXT,
                 rarity TEXT,
                 image_url TEXT,
+                price_usd TEXT,
+                price_usd_foil TEXT,
                 data_json TEXT,
                 updated_at TEXT
             )
         ''')
+        
+        # Check if price columns exist and add them if not (for backwards compatibility)
+        cursor.execute("PRAGMA table_info(cards_cache)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'price_usd' not in columns:
+            cursor.execute('ALTER TABLE cards_cache ADD COLUMN price_usd TEXT')
+        
+        if 'price_usd_foil' not in columns:
+            cursor.execute('ALTER TABLE cards_cache ADD COLUMN price_usd_foil TEXT')
         
         # Create indexes for fast lookups
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_name ON cards_cache(name)')
@@ -157,8 +169,8 @@ class BulkDataCache:
                 
                 cursor.execute('''
                     INSERT OR REPLACE INTO cards_cache 
-                    (id, name, set_code, collector_number, set_name, rarity, image_url, data_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, name, set_code, collector_number, set_name, rarity, image_url, price_usd, price_usd_foil, data_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     card['id'],
                     card['name'],
@@ -167,6 +179,8 @@ class BulkDataCache:
                     card.get('set_name', ''),
                     card.get('rarity', ''),
                     card.get('image_uris', {}).get('small', ''),
+                    card.get('prices', {}).get('usd'),
+                    card.get('prices', {}).get('usd_foil'),
                     json.dumps(card),
                     datetime.now().isoformat()
                 ))
@@ -371,8 +385,8 @@ class BulkDataCache:
             try:
                 cursor.execute('''
                     INSERT OR REPLACE INTO cards_cache 
-                    (id, name, set_code, collector_number, set_name, rarity, image_url, data_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, name, set_code, collector_number, set_name, rarity, image_url, price_usd, price_usd_foil, data_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     card['id'],
                     card['name'],
@@ -381,6 +395,8 @@ class BulkDataCache:
                     card.get('set_name', ''),
                     card.get('rarity', ''),
                     card.get('image_uris', {}).get('small', ''),
+                    card.get('prices', {}).get('usd'),
+                    card.get('prices', {}).get('usd_foil'),
                     json.dumps(card),
                     datetime.now().isoformat()
                 ))
@@ -545,7 +561,10 @@ class CollectionManager:
             'condition': 'Near Mint',
             'language': 'English',
             'rarity': card_data['rarity'],
-            'image_url': card_data.get('image_uris', {}).get('small', '')
+            'image_url': card_data.get('image_uris', {}).get('small', ''),
+            'price_usd': card_data.get('prices', {}).get('usd_foil' if foil else 'usd'),
+            'price_usd_regular': card_data.get('prices', {}).get('usd'),
+            'price_usd_foil': card_data.get('prices', {}).get('usd_foil')
         }
     
     def export_to_csv(self, format_type: str = 'mtggoldfish') -> str:
@@ -575,11 +594,11 @@ class CollectionManager:
                         'Misprint': '',
                         'Promo': '',
                         'Textless': '',
-                        'My Price': ''
+                        'My Price': card.get('price_usd', '')
                     })
         else:
             # MTGGoldfish format (default)
-            fieldnames = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language']
+            fieldnames = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language', 'Price USD']
             
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
@@ -593,7 +612,8 @@ class CollectionManager:
                         'Quantity': card['quantity'],
                         'Foil': 'Yes' if card['foil'] else 'No',
                         'Condition': card['condition'],
-                        'Language': card['language']
+                        'Language': card['language'],
+                        'Price USD': card.get('price_usd', '')
                     })
         
         return output.getvalue()
@@ -603,10 +623,27 @@ class CollectionManager:
         total_cards = sum(card['quantity'] for card in self.collection.values())
         total_unique = len([card for card in self.collection.values() if card['quantity'] > 0])
         
+        # Calculate total estimated value
+        total_value = 0.0
+        priced_cards = 0
+        
+        for card in self.collection.values():
+            if card['quantity'] > 0:
+                price_str = card.get('price_usd')
+                if price_str:
+                    try:
+                        price = float(price_str)
+                        total_value += price * card['quantity']
+                        priced_cards += 1
+                    except (ValueError, TypeError):
+                        pass
+        
         return {
             'total_cards': total_cards,
             'unique_cards': total_unique,
-            'sets_represented': len(set(card['set'] for card in self.collection.values() if card['quantity'] > 0))
+            'sets_represented': len(set(card['set'] for card in self.collection.values() if card['quantity'] > 0)),
+            'total_value': total_value,
+            'priced_cards': priced_cards
         }
     
     def import_from_csv(self, csv_content: str, progress_callback=None) -> Dict:
@@ -702,7 +739,10 @@ class CollectionManager:
                             'condition': condition,
                             'language': language,
                             'rarity': card_data.get('rarity', 'unknown'),
-                            'image_url': card_data.get('image_uris', {}).get('small', '')
+                            'image_url': card_data.get('image_uris', {}).get('small', ''),
+                            'price_usd': card_data.get('prices', {}).get('usd_foil' if foil else 'usd'),
+                            'price_usd_regular': card_data.get('prices', {}).get('usd'),
+                            'price_usd_foil': card_data.get('prices', {}).get('usd_foil')
                         }
                         imported_count += 1
                         

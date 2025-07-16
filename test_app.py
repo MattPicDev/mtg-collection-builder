@@ -232,7 +232,7 @@ class TestCollectionManager(unittest.TestCase):
         self.assertEqual(len(rows), 2)  # Regular + foil versions
         
         # Check that it has MTGGoldfish format columns
-        expected_columns = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language']
+        expected_columns = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language', 'Price USD']
         self.assertEqual(list(rows[0].keys()), expected_columns)
         
         # Check regular card
@@ -262,7 +262,7 @@ class TestCollectionManager(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         
         # Check that it has MTGGoldfish format columns (default)
-        expected_columns = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language']
+        expected_columns = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language', 'Price USD']
         self.assertEqual(list(rows[0].keys()), expected_columns)
         
         # Check the card
