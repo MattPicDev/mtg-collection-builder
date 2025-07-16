@@ -103,25 +103,53 @@ class CollectionManager:
             'image_url': card_data.get('image_uris', {}).get('small', '')
         }
     
-    def export_to_csv(self) -> str:
-        """Export collection to CSV format compatible with MTGGoldfish/Deckbox"""
+    def export_to_csv(self, format_type: str = 'mtggoldfish') -> str:
+        """Export collection to CSV format compatible with MTGGoldfish or DeckBox"""
         output = io.StringIO()
-        fieldnames = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language']
         
-        writer = csv.DictWriter(output, fieldnames=fieldnames)
-        writer.writeheader()
-        
-        for card in self.collection.values():
-            if card['quantity'] > 0:
-                writer.writerow({
-                    'Name': card['name'],
-                    'Set': card['set'],
-                    'Collector Number': card['collector_number'],
-                    'Quantity': card['quantity'],
-                    'Foil': 'Yes' if card['foil'] else 'No',
-                    'Condition': card['condition'],
-                    'Language': card['language']
-                })
+        if format_type.lower() == 'deckbox':
+            # DeckBox format
+            fieldnames = ['Count', 'Tradelist Count', 'Name', 'Edition', 'Card Number', 'Condition', 'Foil', 'Signed', 'Artist Proof', 'Altered Art', 'Misprint', 'Promo', 'Textless', 'My Price']
+            
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for card in self.collection.values():
+                if card['quantity'] > 0:
+                    writer.writerow({
+                        'Count': card['quantity'],
+                        'Tradelist Count': '',
+                        'Name': card['name'],
+                        'Edition': card.get('set_name', card['set']),
+                        'Card Number': card['collector_number'],
+                        'Condition': card['condition'],
+                        'Foil': 'foil' if card['foil'] else '',
+                        'Signed': '',
+                        'Artist Proof': '',
+                        'Altered Art': '',
+                        'Misprint': '',
+                        'Promo': '',
+                        'Textless': '',
+                        'My Price': ''
+                    })
+        else:
+            # MTGGoldfish format (default)
+            fieldnames = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language']
+            
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for card in self.collection.values():
+                if card['quantity'] > 0:
+                    writer.writerow({
+                        'Name': card['name'],
+                        'Set': card['set'],
+                        'Collector Number': card['collector_number'],
+                        'Quantity': card['quantity'],
+                        'Foil': 'Yes' if card['foil'] else 'No',
+                        'Condition': card['condition'],
+                        'Language': card['language']
+                    })
         
         return output.getvalue()
     
@@ -374,19 +402,27 @@ def collection_view():
 
 @app.route('/export')
 def export_collection():
-    """Export collection as CSV"""
-    csv_data = collection_manager.export_to_csv()
+    """Export collection as CSV with format selection"""
+    format_type = request.args.get('format', 'mtggoldfish').lower()
+    
+    if format_type not in ['mtggoldfish', 'deckbox']:
+        format_type = 'mtggoldfish'
+    
+    csv_data = collection_manager.export_to_csv(format_type)
     
     # Create a file-like object
     output = io.BytesIO()
     output.write(csv_data.encode('utf-8'))
     output.seek(0)
     
+    # Set appropriate filename based on format
+    filename = f'mtg_collection_{format_type}.csv'
+    
     return send_file(
         output,
         mimetype='text/csv',
         as_attachment=True,
-        download_name='mtg_collection.csv'
+        download_name=filename
     )
 
 @app.route('/import', methods=['GET', 'POST'])

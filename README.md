@@ -77,7 +77,9 @@ I have intentionally not added any statefulness to this application, to make it 
    - Upload a CSV file in the supported format
    - Choose whether to replace or add to your existing collection
 
-7. **Export to CSV** from the collection page when ready
+7. **Export to CSV** from the collection page when ready:
+   - Choose MTGGoldfish format for compatibility with MTGGoldfish and similar sites
+   - Choose DeckBox format for compatibility with DeckBox and similar sites
 
 ## Keyboard Shortcuts
 
@@ -99,7 +101,10 @@ I have intentionally not added any statefulness to this application, to make it 
 
 ## CSV Import/Export Format
 
-The CSV format includes the following columns:
+### Export Formats
+The tool supports exporting your collection in two popular formats:
+
+#### MTGGoldfish Format
 - Name
 - Set (3-letter code)
 - Collector Number
@@ -108,10 +113,15 @@ The CSV format includes the following columns:
 - Condition
 - Language
 
-This format is compatible with:
-- MTGGoldfish
-- Deckbox
-- Most other collection tracking sites
+#### DeckBox Format
+- Count
+- Tradelist Count
+- Name
+- Edition (full set name)
+- Card Number
+- Condition
+- Foil (foil/blank)
+- Signed, Artist Proof, Altered Art, Misprint, Promo, Textless, My Price (additional fields)
 
 ### Import Features
 - **Smart card lookup**: Uses Scryfall API to verify card details
@@ -292,6 +302,15 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Implemented fallback search strategies for better card matching
     - Added comprehensive test coverage for DeckBox format import
 
+20. **"Make sure that we can export in the same format we just added import support for."**
+    - Enhanced export functionality to support both MTGGoldfish and DeckBox CSV formats
+    - Added format selection dropdown in collection view with user-friendly icons
+    - Implemented dual export methods with proper column mapping for each format
+    - Added format parameter validation with sensible defaults
+    - Created comprehensive test coverage for both export formats including route testing
+    - Updated documentation with detailed format specifications and usage instructions
+    - Ensured round-trip compatibility - can export DeckBox format and import it back seamlessly
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data
@@ -299,13 +318,14 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
 - **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
 - **Real-time filtering**: Instant name-based card filtering with smart progress tracking
 - **Optimized UI layout**: Four-tier control structure with proper visual hierarchy and spacing
-- **CSV import/export** compatible with major collection trackers with flexible format support
+- **CSV import/export** compatible with major collection trackers with dual format support (MTGGoldfish and DeckBox)
 - **Real-time progress tracking** with improved UI layout and positioning
 - **Comprehensive error handling** and user feedback
 - **Professional development setup** with VS Code integration, unit testing, and streamlined CI/CD
 - **Performance optimizations** for smooth user experience and fast DOM manipulation
 - **Cross-platform compatibility** with portable development configurations
 - **Intuitive UI design** with streamlined layouts and reduced visual clutter
+- **Bidirectional format support** with round-trip compatibility for both import and export formats
 
 The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, and development workflow improvements.
 

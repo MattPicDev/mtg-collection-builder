@@ -184,6 +184,96 @@ class TestCollectionManager(unittest.TestCase):
         self.assertEqual(foil_card['Quantity'], '1')
         self.assertEqual(foil_card['Foil'], 'Yes')
     
+    def test_export_to_csv_deckbox_format(self):
+        """Test CSV export in DeckBox format"""
+        # Add some cards to collection
+        self.manager.add_card(self.sample_card, 2, False)
+        self.manager.add_card(self.sample_card, 1, True)
+        
+        # Test DeckBox format export
+        csv_output = self.manager.export_to_csv('deckbox')
+        
+        # Parse the CSV to verify content
+        csv_file = io.StringIO(csv_output)
+        reader = csv.DictReader(csv_file)
+        rows = list(reader)
+        
+        self.assertEqual(len(rows), 2)  # Regular + foil versions
+        
+        # Check that it has DeckBox format columns
+        expected_columns = ['Count', 'Tradelist Count', 'Name', 'Edition', 'Card Number', 'Condition', 'Foil', 'Signed', 'Artist Proof', 'Altered Art', 'Misprint', 'Promo', 'Textless', 'My Price']
+        self.assertEqual(list(rows[0].keys()), expected_columns)
+        
+        # Check regular card
+        regular_card = next(row for row in rows if row['Foil'] == '')
+        self.assertEqual(regular_card['Name'], 'Lightning Bolt')
+        self.assertEqual(regular_card['Count'], '2')
+        self.assertEqual(regular_card['Edition'], 'Kamigawa: Neon Dynasty')
+        self.assertEqual(regular_card['Card Number'], '123')
+        
+        # Check foil card
+        foil_card = next(row for row in rows if row['Foil'] == 'foil')
+        self.assertEqual(foil_card['Count'], '1')
+        self.assertEqual(foil_card['Foil'], 'foil')
+        self.assertEqual(foil_card['Name'], 'Lightning Bolt')
+    
+    def test_export_to_csv_mtggoldfish_format(self):
+        """Test CSV export in MTGGoldfish format (default)"""
+        # Add some cards to collection
+        self.manager.add_card(self.sample_card, 2, False)
+        self.manager.add_card(self.sample_card, 1, True)
+        
+        # Test MTGGoldfish format export (default)
+        csv_output = self.manager.export_to_csv('mtggoldfish')
+        
+        # Parse the CSV to verify content
+        csv_file = io.StringIO(csv_output)
+        reader = csv.DictReader(csv_file)
+        rows = list(reader)
+        
+        self.assertEqual(len(rows), 2)  # Regular + foil versions
+        
+        # Check that it has MTGGoldfish format columns
+        expected_columns = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language']
+        self.assertEqual(list(rows[0].keys()), expected_columns)
+        
+        # Check regular card
+        regular_card = next(row for row in rows if row['Foil'] == 'No')
+        self.assertEqual(regular_card['Name'], 'Lightning Bolt')
+        self.assertEqual(regular_card['Quantity'], '2')
+        self.assertEqual(regular_card['Set'], 'NEO')
+        
+        # Check foil card
+        foil_card = next(row for row in rows if row['Foil'] == 'Yes')
+        self.assertEqual(foil_card['Quantity'], '1')
+        self.assertEqual(foil_card['Foil'], 'Yes')
+    
+    def test_export_to_csv_default_format(self):
+        """Test CSV export with default format (should be MTGGoldfish)"""
+        # Add some cards to collection
+        self.manager.add_card(self.sample_card, 2, False)
+        
+        # Test default format export
+        csv_output = self.manager.export_to_csv()
+        
+        # Parse the CSV to verify content
+        csv_file = io.StringIO(csv_output)
+        reader = csv.DictReader(csv_file)
+        rows = list(reader)
+        
+        self.assertEqual(len(rows), 1)
+        
+        # Check that it has MTGGoldfish format columns (default)
+        expected_columns = ['Name', 'Set', 'Collector Number', 'Quantity', 'Foil', 'Condition', 'Language']
+        self.assertEqual(list(rows[0].keys()), expected_columns)
+        
+        # Check the card
+        card = rows[0]
+        self.assertEqual(card['Name'], 'Lightning Bolt')
+        self.assertEqual(card['Quantity'], '2')
+        self.assertEqual(card['Set'], 'NEO')
+        self.assertEqual(card['Foil'], 'No')
+    
     def test_get_collection_summary(self):
         """Test collection summary statistics"""
         # Add multiple cards
@@ -655,6 +745,98 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(regular_cards[0]['name'], 'Lightning Bolt')  # Lightning Bolt is regular
         self.assertEqual(regular_cards[0]['quantity'], 2)
 
+    def test_export_collection_mtggoldfish_format(self):
+        """Test CSV export route with MTGGoldfish format"""
+        # Add a card to collection first
+        card_data = {
+            'id': 'test-card',
+            'name': 'Lightning Bolt',
+            'set': 'neo',
+            'set_name': 'Kamigawa: Neon Dynasty',
+            'collector_number': '123',
+            'rarity': 'common'
+        }
+        collection_manager.add_card(card_data, 2, False)
+        
+        response = self.app.get('/export?format=mtggoldfish')
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'text/csv; charset=utf-8')
+        self.assertIn(b'Lightning Bolt', response.data)
+        
+        # Check filename
+        self.assertIn('mtg_collection_mtggoldfish.csv', response.headers.get('Content-Disposition', ''))
+    
+    def test_export_collection_deckbox_format(self):
+        """Test CSV export route with DeckBox format"""
+        # Add a card to collection first
+        card_data = {
+            'id': 'test-card',
+            'name': 'Lightning Bolt',
+            'set': 'neo',
+            'set_name': 'Kamigawa: Neon Dynasty',
+            'collector_number': '123',
+            'rarity': 'common'
+        }
+        collection_manager.add_card(card_data, 2, False)
+        
+        response = self.app.get('/export?format=deckbox')
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'text/csv; charset=utf-8')
+        self.assertIn(b'Lightning Bolt', response.data)
+        
+        # Check filename
+        self.assertIn('mtg_collection_deckbox.csv', response.headers.get('Content-Disposition', ''))
+        
+        # Check that it has DeckBox format headers
+        csv_content = response.data.decode('utf-8')
+        self.assertIn('Count,Tradelist Count,Name,Edition,Card Number', csv_content)
+    
+    def test_export_collection_invalid_format(self):
+        """Test CSV export route with invalid format defaults to MTGGoldfish"""
+        # Add a card to collection first
+        card_data = {
+            'id': 'test-card',
+            'name': 'Lightning Bolt',
+            'set': 'neo',
+            'set_name': 'Kamigawa: Neon Dynasty',
+            'collector_number': '123',
+            'rarity': 'common'
+        }
+        collection_manager.add_card(card_data, 2, False)
+        
+        response = self.app.get('/export?format=invalid')
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'text/csv; charset=utf-8')
+        self.assertIn(b'Lightning Bolt', response.data)
+        
+        # Check filename defaults to MTGGoldfish
+        self.assertIn('mtg_collection_mtggoldfish.csv', response.headers.get('Content-Disposition', ''))
+    
+    def test_export_collection_default_format(self):
+        """Test CSV export route with no format parameter defaults to MTGGoldfish"""
+        # Add a card to collection first
+        card_data = {
+            'id': 'test-card',
+            'name': 'Lightning Bolt',
+            'set': 'neo',
+            'set_name': 'Kamigawa: Neon Dynasty',
+            'collector_number': '123',
+            'rarity': 'common'
+        }
+        collection_manager.add_card(card_data, 2, False)
+        
+        response = self.app.get('/export')
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'text/csv; charset=utf-8')
+        self.assertIn(b'Lightning Bolt', response.data)
+        
+        # Check filename defaults to MTGGoldfish
+        self.assertIn('mtg_collection_mtggoldfish.csv', response.headers.get('Content-Disposition', ''))
+    
 
 if __name__ == '__main__':
     unittest.main()

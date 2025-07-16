@@ -48,9 +48,19 @@
                 <a href="/import" class="btn btn-info">
                     <i class="fas fa-upload"></i> Import CSV
                 </a>
-                <a href="/export" class="btn btn-success">
-                    <i class="fas fa-download"></i> Export CSV
-                </a>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="/export?format=mtggoldfish">
+                            <i class="fas fa-fish"></i> MTGGoldfish Format
+                        </a></li>
+                        <li><a class="dropdown-item" href="/export?format=deckbox">
+                            <i class="fas fa-box"></i> DeckBox Format
+                        </a></li>
+                    </ul>
+                </div>
                 <a href="/" class="btn btn-primary">
                     <i class="fas fa-plus"></i> Add More Cards
                 </a>
