@@ -268,13 +268,20 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Reduced progress bar width while maintaining functionality
     - Improved overall visual hierarchy and user experience
 
+17. **"Hm, that doesn't look right. The main buttons are still jumbled in the upper right. 'Back to Sets', 'Rapid Mode', and 'Save Collection' should always be on the same row. Right now, 'Save Collection' is rendering below the other two. The progress bar is also floating too high up on the page. Perhaps it should be between the 'add card' buttons and the sorting buttons."**
+    - Fixed main action buttons layout to ensure they always stay on the same horizontal row
+    - Increased space allocation for main buttons (col-md-8) to prevent wrapping
+    - Repositioned progress bar between quantity buttons and sorting controls for better visual flow
+    - Created clear visual hierarchy with four distinct sections: title/actions, quantity controls, progress tracking, and sorting/filtering
+    - Added proper spacing between sections for improved readability
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data
 - **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting
 - **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
 - **Real-time filtering**: Instant name-based card filtering with smart progress tracking
-- **Organized UI layout**: Clean two-row control structure reducing visual clutter
+- **Optimized UI layout**: Four-tier control structure with proper visual hierarchy and spacing
 - **CSV import/export** compatible with major collection trackers
 - **Real-time progress tracking** with improved UI layout and positioning
 - **Comprehensive error handling** and user feedback

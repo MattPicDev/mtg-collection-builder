@@ -4,8 +4,9 @@
 
 {% block content %}
 <div class="progress-section">
+    <!-- Title and Main Action Buttons -->
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-4">
             <h2>
                 {% if set_info.icon_svg_uri %}
                 <img src="{{ set_info.icon_svg_uri }}" alt="{{ set_info.name }}" style="width: 32px; height: 32px; margin-right: 10px;">
@@ -14,18 +15,11 @@
                 <small class="text-muted">({{ set_info.code|upper }})</small>
             </h2>
         </div>
-        <div class="col-md-3">
-            <div class="progress">
-                <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar">
-                    <span id="progressText">0 / {{ cards|length }}</span>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 text-end">
-            <a href="/" class="btn btn-secondary">
+        <div class="col-md-8 text-end">
+            <a href="/" class="btn btn-secondary me-2">
                 <i class="fas fa-arrow-left"></i> Back to Sets
             </a>
-            <a href="/set/{{ set_info.code }}/rapid" class="btn btn-info">
+            <a href="/set/{{ set_info.code }}/rapid" class="btn btn-info me-2">
                 <i class="fas fa-bolt"></i> Rapid Mode
             </a>
             <button type="button" class="btn btn-success" onclick="saveCollection()">
@@ -34,7 +28,8 @@
         </div>
     </div>
     
-    <div class="row mt-2">
+    <!-- Quantity Buttons -->
+    <div class="row mt-3">
         <div class="col-md-6">
             <div class="btn-group" role="group">
                 <button type="button" class="btn btn-outline-secondary" onclick="setAllQuantities(0)">
@@ -48,8 +43,23 @@
                 </button>
             </div>
         </div>
-        <div class="col-md-6 text-end">
-            <div class="btn-group me-3" role="group">
+    </div>
+    
+    <!-- Progress Bar -->
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar">
+                    <span id="progressText">0 / {{ cards|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sorting and Filter Controls -->
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <div class="btn-group" role="group">
                 <button type="button" class="btn btn-outline-primary active" id="sortByNumber" onclick="sortCards('number')">
                     <i class="fas fa-sort-numeric-down"></i> Card #
                 </button>
@@ -57,7 +67,8 @@
                     <i class="fas fa-sort-alpha-down"></i> Name
                 </button>
             </div>
-            
+        </div>
+        <div class="col-md-6 text-end">
             <div class="input-group" style="width: 250px; display: inline-flex;">
                 <span class="input-group-text">
                     <i class="fas fa-search"></i>
