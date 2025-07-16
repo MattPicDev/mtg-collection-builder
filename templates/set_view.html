@@ -24,7 +24,7 @@
     </div>
     
     <div class="row mt-2">
-        <div class="col-md-6">
+        <div class="col-md-8">
             <div class="btn-group" role="group">
                 <button type="button" class="btn btn-outline-secondary" onclick="setAllQuantities(0)">
                     <i class="fas fa-times"></i> Clear All
@@ -45,8 +45,18 @@
                     <i class="fas fa-sort-alpha-down"></i> Name
                 </button>
             </div>
+            
+            <div class="input-group ms-3" style="width: 250px; display: inline-flex;">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" class="form-control" id="nameFilter" placeholder="Filter by name..." oninput="filterCards()">
+                <button class="btn btn-outline-secondary" type="button" onclick="clearFilter()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
-        <div class="col-md-6 text-end">
+        <div class="col-md-4 text-end">
             <a href="/" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Sets
             </a>
@@ -267,6 +277,58 @@ document.addEventListener('keydown', function(event) {
         saveCollection();
     }
 });
+
+// Name filtering functionality
+function filterCards() {
+    const filterValue = document.getElementById('nameFilter').value.toLowerCase();
+    const cardElements = document.querySelectorAll('#cardsContainer > div');
+    
+    cardElements.forEach(element => {
+        const cardTitle = element.querySelector('.card-title');
+        if (cardTitle) {
+            const cardName = cardTitle.textContent.toLowerCase();
+            if (cardName.startsWith(filterValue)) {
+                element.style.display = 'block';
+            } else {
+                element.style.display = 'none';
+            }
+        }
+    });
+    
+    // Update progress bar to only count visible cards
+    updateFilteredProgress();
+}
+
+function clearFilter() {
+    document.getElementById('nameFilter').value = '';
+    const cardElements = document.querySelectorAll('#cardsContainer > div');
+    cardElements.forEach(element => {
+        element.style.display = 'block';
+    });
+    updateProgress(); // Return to normal progress counting
+}
+
+function updateFilteredProgress() {
+    const inputs = document.querySelectorAll('.quantity-input');
+    const visibleCards = document.querySelectorAll('#cardsContainer > div[style*="display: block"], #cardsContainer > div:not([style*="display: none"])');
+    
+    let processedVisible = 0;
+    
+    inputs.forEach(input => {
+        if (parseInt(input.value) > 0) {
+            const cardElement = input.closest('.col-md-6, .col-lg-4');
+            if (cardElement && (cardElement.style.display !== 'none')) {
+                processedVisible++;
+            }
+        }
+    });
+    
+    const totalVisible = visibleCards.length;
+    const percentage = totalVisible > 0 ? (processedVisible / totalVisible) * 100 : 0;
+    
+    document.getElementById('progressBar').style.width = percentage + '%';
+    document.getElementById('progressText').textContent = `${processedVisible} / ${totalVisible}`;
+}
 
 // Initialize progress
 updateProgress();

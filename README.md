@@ -17,6 +17,7 @@ I have intentionally not added any statefulness to this application, to make it 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
 - **Rapid input mode**: Keyboard-driven interface with improved UI layout and progress tracking
 - **Flexible card sorting**: Toggle between alphabetical and card number sorting in both grid and rapid views
+- **Real-time name filtering**: Instantly filter cards by name in grid view as you type
 - **Optimized performance**: Fast client-side sorting with DOM reordering for smooth user experience
 - **Scryfall API integration**: Automatically fetches card data and images
 - **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers
@@ -66,7 +67,7 @@ I have intentionally not added any statefulness to this application, to make it 
    - **Rapid Mode**: Lightning-fast keyboard-driven entry with streamlined progress tracking
 
 5. **Enter quantities** for each card you own:
-   - **Grid View**: Use the number inputs and foil checkboxes, toggle sorting between card number and alphabetical order
+   - **Grid View**: Use the number inputs and foil checkboxes, toggle sorting between card number and alphabetical order, use the name filter to quickly find specific cards
    - **Rapid Mode**: Type numbers, press Space for foil, Enter to save and continue, use sorting buttons to change card order
 
 6. **Save your collection** when finished with a set
@@ -84,6 +85,7 @@ I have intentionally not added any statefulness to this application, to make it 
 - **Ctrl+S**: Save collection
 - **Enter**: Move to next card input field
 - **Sorting buttons**: Click to toggle between card number and alphabetical order (optimized for performance)
+- **Name filter**: Type to instantly filter cards by name (searches from the beginning of card names)
 - **Search boxes**: Filter sets and collection in real-time
 
 ### Rapid Mode
@@ -252,11 +254,19 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Enhanced user experience with cleaner, more organized layout
     - Progress bar now matches card display width for visual consistency
 
+15. **"Let's try adding another feature to the set view. Let's add a name filter textbox, and as the user types in it, it automatically and rapidly filters the list down to the cards that start with that text."**
+    - Added real-time name filtering to grid view with instant search functionality
+    - Implemented text input with search icon and clear button for better UX
+    - Created efficient filtering that shows/hides cards based on name prefix matching
+    - Added smart progress tracking that updates based on visible filtered cards
+    - Included comprehensive test coverage for the filtering functionality
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data
 - **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting
 - **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
+- **Real-time filtering**: Instant name-based card filtering with smart progress tracking
 - **CSV import/export** compatible with major collection trackers
 - **Real-time progress tracking** with improved UI layout and positioning
 - **Comprehensive error handling** and user feedback

@@ -340,6 +340,58 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertIn(b'sortByName', response.data)
         self.assertIn(b'Card #', response.data)
         self.assertIn(b'Name', response.data)
+        # Check for name filter
+        self.assertIn(b'nameFilter', response.data)
+        self.assertIn(b'Filter by name...', response.data)
+        self.assertIn(b'filterCards()', response.data)
+        self.assertIn(b'clearFilter()', response.data)
+    
+    @patch('app.ScryfallAPI.get_set_cards')
+    @patch('app.ScryfallAPI.get_sets')
+    def test_set_view_name_filter_functionality(self, mock_get_sets, mock_get_set_cards):
+        """Test that name filter elements are present in set view"""
+        mock_get_sets.return_value = [
+            {
+                'code': 'neo', 
+                'name': 'Kamigawa: Neon Dynasty', 
+                'set_type': 'expansion',
+                'released_at': '2022-02-18',
+                'card_count': 300
+            }
+        ]
+        mock_get_set_cards.return_value = [
+            {
+                'id': 'card1', 
+                'name': 'Lightning Bolt', 
+                'collector_number': '1',
+                'rarity': 'common',
+                'mana_cost': '{R}',
+                'image_uris': {'small': 'http://example.com/card1.jpg'}
+            },
+            {
+                'id': 'card2', 
+                'name': 'Counterspell', 
+                'collector_number': '2',
+                'rarity': 'common',
+                'mana_cost': '{1}{U}',
+                'image_uris': {'small': 'http://example.com/card2.jpg'}
+            }
+        ]
+        
+        response = self.app.get('/set/neo')
+        
+        self.assertEqual(response.status_code, 200)
+        # Check for name filter input elements
+        self.assertIn(b'id="nameFilter"', response.data)
+        self.assertIn(b'placeholder="Filter by name..."', response.data)
+        self.assertIn(b'oninput="filterCards()"', response.data)
+        self.assertIn(b'onclick="clearFilter()"', response.data)
+        # Check for search icon
+        self.assertIn(b'fa-search', response.data)
+        # Check for JavaScript functions
+        self.assertIn(b'function filterCards()', response.data)
+        self.assertIn(b'function clearFilter()', response.data)
+        self.assertIn(b'function updateFilteredProgress()', response.data)
     
     @patch('app.ScryfallAPI.get_set_cards')
     @patch('app.ScryfallAPI.get_sets')
