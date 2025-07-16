@@ -17,6 +17,37 @@
                 <h5><i class="fas fa-upload"></i> Upload CSV File</h5>
             </div>
             <div class="card-body">
+                <!-- Cache Status Section -->
+                <div class="alert alert-info" id="cacheStatus">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="fas fa-database"></i> Card Database Status:</strong>
+                            <span id="cacheStatusText">Loading...</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" id="refreshCacheBtn">
+                            <i class="fas fa-sync"></i> Refresh Database
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <small id="cacheDetails" class="text-muted">Checking cache status...</small>
+                    </div>
+                </div>
+                
+                <!-- Cache Refresh Progress -->
+                <div class="alert alert-warning" id="cacheRefreshProgress" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="fas fa-sync fa-spin"></i> Refreshing Card Database...</strong>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: 0%" id="cacheRefreshProgressBar"></div>
+                        </div>
+                        <small id="cacheRefreshDetails" class="text-muted">Starting refresh...</small>
+                    </div>
+                </div>
+                
                 <form id="importForm" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="csvFile" class="form-label">Select CSV File</label>
@@ -366,6 +397,28 @@ function showResults(data) {
         </div>
     `;
     
+    // Show performance metrics if available
+    if (data.cache_hits !== undefined && data.api_calls !== undefined) {
+        const totalLookups = data.cache_hits + data.api_calls;
+        const cacheHitRate = totalLookups > 0 ? ((data.cache_hits / totalLookups) * 100).toFixed(1) : 0;
+        
+        content += `
+            <div class="alert alert-info">
+                <strong><i class="fas fa-tachometer-alt"></i> Import Performance:</strong>
+                <ul class="mt-2 mb-0">
+                    <li>Cache hits: ${data.cache_hits} (${cacheHitRate}%)</li>
+                    <li>API calls: ${data.api_calls}</li>
+                    <li>Total lookups: ${totalLookups}</li>
+                </ul>
+                <small class="text-muted">
+                    ${cacheHitRate > 80 ? 'Excellent cache performance! Most cards were found locally.' : 
+                      cacheHitRate > 50 ? 'Good cache performance. Consider refreshing the database for better results.' :
+                      'Poor cache performance. Database refresh recommended for faster imports.'}
+                </small>
+            </div>
+        `;
+    }
+    
     if (data.errors && data.errors.length > 0) {
         content += `
             <div class="alert alert-warning">
@@ -384,6 +437,172 @@ function resetForm() {
     document.getElementById('importForm').reset();
     document.getElementById('importProgress').style.display = 'none';
     document.getElementById('importResults').style.display = 'none';
+}
+
+// Cache status and refresh
+document.addEventListener('DOMContentLoaded', function() {
+    checkCacheStatus();
+    
+    document.getElementById('refreshCacheBtn').addEventListener('click', function() {
+        refreshCache();
+    });
+});
+
+function checkCacheStatus() {
+    fetch('/api/cache/status')
+        .then(response => response.json())
+        .then(data => {
+            const statusText = document.getElementById('cacheStatusText');
+            const detailsText = document.getElementById('cacheDetails');
+            
+            if (data.cache_valid) {
+                statusText.innerHTML = '<i class="fas fa-check-circle text-success"></i> Database is up-to-date';
+                detailsText.textContent = `${data.total_cards.toLocaleString()} cards from ${data.total_sets} sets. Last updated: ${new Date(data.last_update).toLocaleString()}. Cache size: ${data.cache_size_mb.toFixed(1)} MB`;
+            } else {
+                statusText.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> Database needs updating';
+                detailsText.textContent = 'Your card database is not current. Click "Refresh Database" to update for faster imports.';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking cache status:', error);
+            document.getElementById('cacheStatusText').innerHTML = '<i class="fas fa-exclamation-circle text-danger"></i> Error loading status';
+            document.getElementById('cacheDetails').textContent = 'Unable to check cache status at this time.';
+        });
+}
+
+function refreshCache() {
+    const refreshBtn = document.getElementById('refreshCacheBtn');
+    const cacheStatus = document.getElementById('cacheStatus');
+    const cacheRefreshProgress = document.getElementById('cacheRefreshProgress');
+    
+    // Disable button and show progress
+    refreshBtn.disabled = true;
+    cacheStatus.style.display = 'none';
+    cacheRefreshProgress.style.display = 'block';
+    
+    // Start cache refresh
+    fetch('/api/cache/refresh', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.refresh_id) {
+            trackCacheRefresh(data.refresh_id);
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        console.error('Error starting cache refresh:', error);
+        showCacheRefreshError('Error starting cache refresh: ' + error.message);
+        resetCacheRefreshUI();
+    });
+}
+
+function trackCacheRefresh(refreshId) {
+    const eventSource = new EventSource(`/api/cache/refresh_progress/${refreshId}`);
+    
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        updateCacheRefreshProgress(data);
+        
+        if (data.status === 'complete') {
+            eventSource.close();
+            showCacheRefreshSuccess();
+            resetCacheRefreshUI();
+            checkCacheStatus(); // Refresh cache status
+        } else if (data.status === 'error') {
+            eventSource.close();
+            showCacheRefreshError(data.message || 'Cache refresh failed');
+            resetCacheRefreshUI();
+        }
+    };
+    
+    eventSource.onerror = function() {
+        eventSource.close();
+        showCacheRefreshError('Connection lost during cache refresh');
+        resetCacheRefreshUI();
+    };
+}
+
+function updateCacheRefreshProgress(data) {
+    const progressBar = document.getElementById('cacheRefreshProgressBar');
+    const detailsText = document.getElementById('cacheRefreshDetails');
+    
+    if (data.total > 0) {
+        const percentage = Math.round((data.current / data.total) * 100);
+        progressBar.style.width = percentage + '%';
+        progressBar.textContent = percentage + '%';
+    }
+    
+    detailsText.textContent = data.message || 'Refreshing...';
+}
+
+function showCacheRefreshSuccess() {
+    const cacheRefreshProgress = document.getElementById('cacheRefreshProgress');
+    cacheRefreshProgress.className = 'alert alert-success';
+    cacheRefreshProgress.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong><i class="fas fa-check-circle"></i> Card Database Updated Successfully!</strong>
+            </div>
+        </div>
+        <div class="mt-2">
+            <small class="text-muted">Your card database has been refreshed with the latest data.</small>
+        </div>
+    `;
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+        cacheRefreshProgress.style.display = 'none';
+    }, 3000);
+}
+
+function showCacheRefreshError(message) {
+    const cacheRefreshProgress = document.getElementById('cacheRefreshProgress');
+    cacheRefreshProgress.className = 'alert alert-danger';
+    cacheRefreshProgress.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong><i class="fas fa-exclamation-circle"></i> Cache Refresh Failed</strong>
+            </div>
+        </div>
+        <div class="mt-2">
+            <small class="text-muted">${message}</small>
+        </div>
+    `;
+    
+    // Hide error message after 5 seconds
+    setTimeout(() => {
+        cacheRefreshProgress.style.display = 'none';
+    }, 5000);
+}
+
+function resetCacheRefreshUI() {
+    const refreshBtn = document.getElementById('refreshCacheBtn');
+    const cacheStatus = document.getElementById('cacheStatus');
+    const cacheRefreshProgress = document.getElementById('cacheRefreshProgress');
+    
+    refreshBtn.disabled = false;
+    cacheStatus.style.display = 'block';
+    
+    // Reset progress bar
+    setTimeout(() => {
+        cacheRefreshProgress.className = 'alert alert-warning';
+        cacheRefreshProgress.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong><i class="fas fa-sync fa-spin"></i> Refreshing Card Database...</strong>
+                </div>
+            </div>
+            <div class="mt-2">
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: 0%" id="cacheRefreshProgressBar"></div>
+                </div>
+                <small id="cacheRefreshDetails" class="text-muted">Starting refresh...</small>
+            </div>
+        `;
+    }, 3000);
 }
 </script>
 {% endblock %}

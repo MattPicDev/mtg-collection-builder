@@ -919,6 +919,69 @@ class TestFlaskRoutes(unittest.TestCase):
         
         # Check filename defaults to MTGGoldfish
         self.assertIn('mtg_collection_mtggoldfish.csv', response.headers.get('Content-Disposition', ''))
+    
+    @patch('app.bulk_cache')
+    def test_import_with_bulk_cache_performance(self, mock_cache):
+        """Test import with bulk cache performance tracking"""
+        # Mock bulk cache
+        mock_cache.is_cache_valid.return_value = True
+        mock_cache.find_card_in_cache.return_value = {
+            'id': 'test-card-id',
+            'name': 'Lightning Bolt',
+            'set': 'lea',
+            'collector_number': '161',
+            'set_name': 'Limited Edition Alpha',
+            'rarity': 'common',
+            'image_uris': {'small': 'http://example.com/image.jpg'},
+            '_source': 'cache'
+        }
+        
+        csv_content = '''Name,Set,Collector Number,Quantity,Foil,Condition,Language
+Lightning Bolt,LEA,161,4,No,Near Mint,English
+Black Lotus,LEA,232,1,No,Near Mint,English'''
+        
+        # Mock the hybrid method to simulate cache hit
+        with patch.object(collection_manager, '_find_card_by_details_hybrid') as mock_hybrid:
+            mock_hybrid.return_value = {
+                'id': 'test-card-id',
+                'name': 'Lightning Bolt',
+                'set': 'lea',
+                'collector_number': '161',
+                'set_name': 'Limited Edition Alpha',
+                'rarity': 'common',
+                'image_uris': {'small': 'http://example.com/image.jpg'},
+                '_source': 'cache'
+            }
+            
+            result = collection_manager.import_from_csv(csv_content)
+            
+            # Check that performance metrics are included
+            self.assertIn('cache_hits', result)
+            self.assertIn('api_calls', result)
+            self.assertIn('cache_hit_rate', result)
+            self.assertGreaterEqual(result['cache_hits'], 0)
+            self.assertGreaterEqual(result['api_calls'], 0)
+            self.assertGreaterEqual(result['cache_hit_rate'], 0)
+
+    def test_cache_management_routes(self):
+        """Test cache management API routes"""
+        # Test cache status endpoint
+        response = self.app.get('/api/cache/status')
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.data)
+        self.assertIn('cache_valid', data)
+        self.assertIn('total_cards', data)
+        self.assertIn('total_sets', data)
+        
+        # Test cache refresh endpoint
+        response = self.app.post('/api/cache/refresh')
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.data)
+        self.assertIn('refresh_id', data)
+
+    # ...existing tests...
 
 
 if __name__ == '__main__':

@@ -9,11 +9,341 @@ import json
 import uuid
 import threading
 from queue import Queue
+import sqlite3
+from datetime import datetime, timedelta
+import hashlib
 
 app = Flask(__name__)
 
 # Progress tracking system
 import_progress = {}
+
+# Cache configuration
+CACHE_DB_PATH = 'mtg_cache.db'
+CACHE_EXPIRY_DAYS = 7  # Cache bulk data for 7 days
+
+class BulkDataCache:
+    """Manages local caching of Scryfall bulk data for faster imports"""
+    
+    def __init__(self, db_path: str = CACHE_DB_PATH):
+        self.db_path = db_path
+        self.init_database()
+    
+    def init_database(self):
+        """Initialize the SQLite database for caching"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create tables for caching
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS bulk_metadata (
+                id INTEGER PRIMARY KEY,
+                data_type TEXT UNIQUE,
+                download_url TEXT,
+                updated_at TEXT,
+                size INTEGER,
+                etag TEXT
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cards_cache (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                set_code TEXT,
+                collector_number TEXT,
+                set_name TEXT,
+                rarity TEXT,
+                image_url TEXT,
+                data_json TEXT,
+                updated_at TEXT
+            )
+        ''')
+        
+        # Create indexes for fast lookups
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_name ON cards_cache(name)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_set ON cards_cache(set_code)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_collector ON cards_cache(collector_number)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_lookup ON cards_cache(name, set_code, collector_number)')
+        
+        conn.commit()
+        conn.close()
+    
+    def is_cache_valid(self, data_type: str = 'default_cards') -> bool:
+        """Check if cached data is still valid"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            'SELECT updated_at FROM bulk_metadata WHERE data_type = ?',
+            (data_type,)
+        )
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result:
+            return False
+        
+        updated_at = datetime.fromisoformat(result[0])
+        return datetime.now() - updated_at < timedelta(days=CACHE_EXPIRY_DAYS)
+    
+    def get_bulk_data_info(self) -> Optional[Dict]:
+        """Get bulk data download information from Scryfall"""
+        try:
+            response = requests.get(f"{ScryfallAPI.BASE_URL}/bulk-data")
+            response.raise_for_status()
+            data = response.json()
+            
+            # Find the default cards bulk data
+            for bulk_data in data['data']:
+                if bulk_data['type'] == 'default_cards':
+                    return bulk_data
+            
+            return None
+        except requests.RequestException as e:
+            print(f"Error fetching bulk data info: {e}")
+            return None
+    
+    def download_and_cache_bulk_data(self, progress_callback=None) -> bool:
+        """Download and cache bulk card data"""
+        bulk_info = self.get_bulk_data_info()
+        if not bulk_info:
+            return False
+        
+        try:
+            # Check if we need to download (based on etag/size)
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute(
+                'SELECT etag, size FROM bulk_metadata WHERE data_type = ?',
+                ('default_cards',)
+            )
+            cached_info = cursor.fetchone()
+            
+            # If we have the same etag and size, skip download
+            if cached_info and cached_info[0] == bulk_info.get('content_encoding') and cached_info[1] == bulk_info.get('size'):
+                conn.close()
+                return True
+            
+            if progress_callback:
+                progress_callback({
+                    'status': 'downloading',
+                    'message': 'Downloading bulk card data...',
+                    'current': 0,
+                    'total': 100
+                })
+            
+            # Download bulk data
+            response = requests.get(bulk_info['download_uri'], stream=True)
+            response.raise_for_status()
+            
+            # Parse JSON incrementally
+            cards_data = response.json()
+            total_cards = len(cards_data)
+            
+            # Clear existing cache
+            cursor.execute('DELETE FROM cards_cache')
+            
+            # Insert cards into cache
+            for i, card in enumerate(cards_data):
+                if progress_callback and i % 1000 == 0:
+                    progress_callback({
+                        'status': 'caching',
+                        'message': f'Caching card {i+1} of {total_cards}...',
+                        'current': i,
+                        'total': total_cards
+                    })
+                
+                cursor.execute('''
+                    INSERT OR REPLACE INTO cards_cache 
+                    (id, name, set_code, collector_number, set_name, rarity, image_url, data_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    card['id'],
+                    card['name'],
+                    card['set'],
+                    card['collector_number'],
+                    card.get('set_name', ''),
+                    card.get('rarity', ''),
+                    card.get('image_uris', {}).get('small', ''),
+                    json.dumps(card),
+                    datetime.now().isoformat()
+                ))
+            
+            # Update bulk metadata
+            cursor.execute('''
+                INSERT OR REPLACE INTO bulk_metadata 
+                (data_type, download_url, updated_at, size, etag)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                'default_cards',
+                bulk_info['download_uri'],
+                datetime.now().isoformat(),
+                bulk_info.get('size', 0),
+                bulk_info.get('content_encoding', '')
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            if progress_callback:
+                progress_callback({
+                    'status': 'complete',
+                    'message': f'Cached {total_cards} cards successfully',
+                    'current': total_cards,
+                    'total': total_cards
+                })
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error downloading bulk data: {e}")
+            if progress_callback:
+                progress_callback({
+                    'status': 'error',
+                    'message': f'Error downloading bulk data: {str(e)}',
+                    'current': 0,
+                    'total': 0
+                })
+            return False
+    
+    def find_card_in_cache(self, name: str, set_code: str, collector_number: str = None) -> Optional[Dict]:
+        """Find a card in the local cache"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Normalize set code
+        set_code = set_code.lower()
+        
+        # First try exact match with collector number
+        if collector_number:
+            cursor.execute('''
+                SELECT data_json FROM cards_cache 
+                WHERE LOWER(name) = LOWER(?) AND LOWER(set_code) = LOWER(?) AND collector_number = ?
+            ''', (name, set_code, collector_number))
+            result = cursor.fetchone()
+            if result:
+                conn.close()
+                return json.loads(result[0])
+        
+        # Try without collector number
+        cursor.execute('''
+            SELECT data_json FROM cards_cache 
+            WHERE LOWER(name) = LOWER(?) AND LOWER(set_code) = LOWER(?)
+            ORDER BY collector_number
+        ''', (name, set_code))
+        result = cursor.fetchone()
+        
+        conn.close()
+        
+        if result:
+            return json.loads(result[0])
+        
+        return None
+    
+    def search_cards_in_cache(self, name: str, set_identifier: str = None) -> List[Dict]:
+        """Search for cards in cache with fuzzy matching"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if set_identifier:
+            # Normalize set identifier
+            set_code = self._normalize_set_identifier(set_identifier)
+            cursor.execute('''
+                SELECT data_json FROM cards_cache 
+                WHERE (LOWER(name) LIKE LOWER(?) OR LOWER(name) = LOWER(?)) 
+                AND (LOWER(set_code) = LOWER(?) OR LOWER(set_name) LIKE LOWER(?))
+                ORDER BY 
+                    CASE WHEN LOWER(name) = LOWER(?) THEN 0 ELSE 1 END,
+                    CASE WHEN LOWER(set_code) = LOWER(?) THEN 0 ELSE 1 END
+                LIMIT 10
+            ''', (f'%{name}%', name, set_code, f'%{set_identifier}%', name, set_code))
+        else:
+            cursor.execute('''
+                SELECT data_json FROM cards_cache 
+                WHERE LOWER(name) LIKE LOWER(?) OR LOWER(name) = LOWER(?)
+                ORDER BY CASE WHEN LOWER(name) = LOWER(?) THEN 0 ELSE 1 END
+                LIMIT 10
+            ''', (f'%{name}%', name, name))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [json.loads(result[0]) for result in results]
+    
+    def _normalize_set_identifier(self, set_identifier: str) -> str:
+        """Convert full set names to 3-letter codes where possible"""
+        # Common set name mappings for DeckBox format
+        set_mappings = {
+            'classic sixth edition': '6ed',
+            'sixth edition': '6ed',
+            'fifth edition': '5ed',
+            'fourth edition': '4ed',
+            'revised edition': '3ed',
+            'unlimited edition': '2ed',
+            'limited edition alpha': 'lea',
+            'limited edition beta': 'leb',
+            'zendikar': 'zen',
+            'magic 2015 core set': 'm15',
+            'magic 2014 core set': 'm14',
+            'magic 2013': 'm13',
+            'magic 2012': 'm12',
+            'magic 2011': 'm11',
+            'magic 2010': 'm10',
+            'tenth edition': '10e',
+            'ninth edition': '9ed',
+            'eighth edition': '8ed',
+            'seventh edition': '7ed',
+            'tempest': 'tmp',
+            'stronghold': 'sth',
+            'exodus': 'exo',
+            'weatherlight': 'wth',
+            'visions': 'vis',
+            'mirage': 'mir',
+            'alliances': 'all',
+            'ice age': 'ice',
+            'homelands': 'hml',
+            'fallen empires': 'fem',
+            'the dark': 'drk',
+            'legends': 'leg',
+            'antiquities': 'atq',
+            'arabian nights': 'arn'
+        }
+        
+        # If it's already a 3-letter code, return as is
+        if len(set_identifier) == 3:
+            return set_identifier.lower()
+        
+        # Try to find a mapping for the full name
+        normalized = set_identifier.lower().strip()
+        return set_mappings.get(normalized, set_identifier.lower())
+    
+    def get_cache_stats(self) -> Dict:
+        """Get statistics about cached data"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT COUNT(*) FROM cards_cache')
+        total_cards = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(DISTINCT set_code) FROM cards_cache')
+        total_sets = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT updated_at FROM bulk_metadata WHERE data_type = ?', ('default_cards',))
+        last_update = cursor.fetchone()
+        
+        conn.close()
+        
+        return {
+            'total_cards': total_cards,
+            'total_sets': total_sets,
+            'last_update': last_update[0] if last_update else None,
+            'cache_valid': self.is_cache_valid()
+        }
+
+# Global cache instance
+bulk_cache = BulkDataCache()
 
 def generate_import_id():
     """Generate a unique ID for import operations"""
@@ -188,11 +518,27 @@ class CollectionManager:
         }
     
     def import_from_csv(self, csv_content: str, progress_callback=None) -> Dict:
-        """Import collection from CSV format - supports both MTGGoldfish and DeckBox formats"""
+        """Import collection from CSV format - supports both MTGGoldfish and DeckBox formats with bulk cache optimization"""
         imported_count = 0
         errors = []
+        cache_hits = 0
+        api_calls = 0
         
         try:
+            # Check if bulk cache is available and valid
+            if not bulk_cache.is_cache_valid():
+                if progress_callback:
+                    progress_callback({
+                        'current': 0,
+                        'total': 0,
+                        'card_name': '',
+                        'status': 'cache_update',
+                        'message': 'Updating card database for faster imports...'
+                    })
+                
+                # Download bulk data in background
+                bulk_cache.download_and_cache_bulk_data(progress_callback)
+            
             # Parse CSV content
             csv_file = io.StringIO(csv_content)
             reader = csv.DictReader(csv_file)
@@ -240,8 +586,14 @@ class CollectionManager:
                     if not name or not set_code or quantity <= 0:
                         continue  # Skip invalid rows
                     
-                    # Try to find the card via Scryfall API
-                    card_data = self._find_card_by_details(name, set_code, collector_number)
+                    # Try to find the card using hybrid approach (cache first, then API)
+                    card_data = self._find_card_by_details_hybrid(name, set_code, collector_number)
+                    
+                    if card_data:
+                        if card_data.get('_source') == 'cache':
+                            cache_hits += 1
+                        else:
+                            api_calls += 1
                     
                     if card_data:
                         # Create collection entry
@@ -294,13 +646,14 @@ class CollectionManager:
                             'status': 'error'
                         })
             
-            # Final progress update
+            # Final progress update with performance stats
             if progress_callback:
                 progress_callback({
                     'current': total_rows,
                     'total': total_rows,
                     'card_name': '',
-                    'status': 'complete'
+                    'status': 'complete',
+                    'message': f'Import complete! {imported_count} cards imported. Cache hits: {cache_hits}, API calls: {api_calls}'
                 })
                     
         except Exception as e:
@@ -309,7 +662,10 @@ class CollectionManager:
         return {
             'imported_count': imported_count,
             'errors': errors,
-            'success': imported_count > 0
+            'success': imported_count > 0,
+            'cache_hits': cache_hits,
+            'api_calls': api_calls,
+            'cache_hit_rate': (cache_hits / max(1, cache_hits + api_calls)) * 100
         }
     
     def _find_card_by_details(self, name: str, set_identifier: str, collector_number: str) -> Optional[Dict]:
@@ -366,6 +722,30 @@ class CollectionManager:
                 
         except requests.RequestException:
             pass
+        
+        return None
+    
+    def _find_card_by_details_hybrid(self, name: str, set_identifier: str, collector_number: str) -> Optional[Dict]:
+        """Find a card using hybrid approach: cache first, then API fallback"""
+        # First try the bulk cache
+        card_data = bulk_cache.find_card_in_cache(name, set_identifier, collector_number)
+        if card_data:
+            card_data['_source'] = 'cache'
+            return card_data
+        
+        # If not in cache, try fuzzy search in cache
+        cached_results = bulk_cache.search_cards_in_cache(name, set_identifier)
+        if cached_results:
+            # Return the best match from cache
+            card_data = cached_results[0]
+            card_data['_source'] = 'cache'
+            return card_data
+        
+        # Fallback to API if cache miss
+        card_data = self._find_card_by_details(name, set_identifier, collector_number)
+        if card_data:
+            card_data['_source'] = 'api'
+            return card_data
         
         return None
     
@@ -495,7 +875,8 @@ class ImportProgressTracker:
 def index():
     """Main page - show set selection"""
     sets = ScryfallAPI.get_sets()
-    return render_template('index.html', sets=sets)  # Show all filtered sets
+    cache_stats = bulk_cache.get_cache_stats()
+    return render_template('index.html', sets=sets, cache_stats=cache_stats)  # Show all filtered sets
 
 @app.route('/set/<set_code>')
 def set_view(set_code: str):
@@ -701,6 +1082,98 @@ def import_progress_stream(import_id):
             else:
                 # If no progress data, send a heartbeat
                 yield f"data: {json.dumps({'status': 'waiting', 'message': 'Waiting for import to start...'})}\n\n"
+            
+            time.sleep(0.1)  # Poll every 100ms
+    
+    response = Response(generate(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection'] = 'keep-alive'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
+@app.route('/api/cache/status')
+def cache_status():
+    """API endpoint to get cache status and statistics"""
+    stats = bulk_cache.get_cache_stats()
+    return jsonify({
+        'cache_valid': stats['cache_valid'],
+        'total_cards': stats['total_cards'],
+        'total_sets': stats['total_sets'],
+        'last_update': stats['last_update'],
+        'cache_size_mb': os.path.getsize(CACHE_DB_PATH) / (1024 * 1024) if os.path.exists(CACHE_DB_PATH) else 0
+    })
+
+@app.route('/api/cache/refresh', methods=['POST'])
+def refresh_cache():
+    """API endpoint to refresh bulk cache"""
+    try:
+        # Generate unique refresh ID for progress tracking
+        refresh_id = generate_import_id()
+        
+        # Initialize progress tracking
+        update_import_progress(refresh_id, {
+            'status': 'starting',
+            'current': 0,
+            'total': 0,
+            'message': 'Starting cache refresh...'
+        })
+        
+        # Create progress callback
+        def progress_callback(progress_data):
+            update_import_progress(refresh_id, progress_data)
+        
+        # Start refresh in background thread
+        def run_refresh():
+            try:
+                success = bulk_cache.download_and_cache_bulk_data(progress_callback)
+                if success:
+                    update_import_progress(refresh_id, {
+                        'status': 'complete',
+                        'message': 'Cache refresh completed successfully',
+                        'current': 100,
+                        'total': 100
+                    })
+                else:
+                    update_import_progress(refresh_id, {
+                        'status': 'error',
+                        'message': 'Cache refresh failed',
+                        'current': 0,
+                        'total': 0
+                    })
+            except Exception as e:
+                update_import_progress(refresh_id, {
+                    'status': 'error',
+                    'message': f'Cache refresh failed: {str(e)}',
+                    'current': 0,
+                    'total': 0
+                })
+        
+        thread = threading.Thread(target=run_refresh)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({'refresh_id': refresh_id})
+        
+    except Exception as e:
+        return jsonify({'error': f'Error starting cache refresh: {str(e)}'}), 500
+
+@app.route('/api/cache/refresh_progress/<refresh_id>')
+def cache_refresh_progress(refresh_id):
+    """Server-sent events endpoint for cache refresh progress"""
+    def generate():
+        while True:
+            progress_data = get_import_progress(refresh_id)
+            
+            if progress_data:
+                yield f"data: {json.dumps(progress_data)}\n\n"
+                
+                # If refresh is complete, clean up and stop
+                if progress_data.get('status') in ['complete', 'error']:
+                    cleanup_import_progress(refresh_id)
+                    break
+            else:
+                # If no progress data, send a heartbeat
+                yield f"data: {json.dumps({'status': 'waiting', 'message': 'Waiting for refresh to start...'})}\n\n"
             
             time.sleep(0.1)  # Poll every 100ms
     
