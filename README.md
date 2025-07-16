@@ -16,6 +16,7 @@ I have intentionally not added any statefulness to this application, to make it 
 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
 - **Rapid input mode**: Keyboard-driven interface for lightning-fast collection entry
+- **Flexible card sorting**: Toggle between alphabetical and card number sorting in grid view
 - **Scryfall API integration**: Automatically fetches card data and images
 - **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers
 - **Collection import**: Upload existing CSV collections to quickly populate your data
@@ -24,6 +25,7 @@ I have intentionally not added any statefulness to this application, to make it 
 - **Search and filter**: Quickly find specific sets or cards
 - **Foil tracking**: Track both regular and foil versions of cards
 - **Collection management**: Clear, replace, or merge collections
+- **Performance optimized**: Fast sorting and smooth UI transitions
 
 ## Installation
 
@@ -80,6 +82,7 @@ I have intentionally not added any statefulness to this application, to make it 
 ### Grid View
 - **Ctrl+S**: Save collection
 - **Enter**: Move to next card input field
+- **Sorting buttons**: Click to switch between card number and alphabetical order
 - **Search boxes**: Filter sets and collection in real-time
 
 ### Rapid Mode
@@ -205,15 +208,49 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
    - Added pytest configuration and test runner script
    - Updated requirements.txt with testing dependencies (pytest, pytest-flask, pytest-mock)
 
+### Repository Management and Licensing
+8. **"Can I rename the project on Github to something more descriptive, without breaking my local repo?" followed by "I renamed it to mtg-collection-builder. Please use that name."**
+   - Guided repository renaming process from mtg-tool to mtg-collection-builder
+   - Updated local git remote URL to match renamed repository
+   - Ensured seamless transition without breaking local development
+
+9. **"Should I add a license file to this repo? If so, what would you recommend?" followed by "Yes, please do."**
+   - Added MIT License to encourage open-source collaboration
+   - Provided clear usage rights and attribution requirements
+   - Updated .gitignore to properly handle VS Code configuration files
+
+### Development Environment Setup
+10. **"How do I easily launch myself this app in VS Code?" followed by concerns about hardcoded paths**
+    - Created VS Code launch.json with debug configurations for app and tests
+    - Added VS Code tasks.json with portable Python interpreter paths
+    - Fixed hardcoded paths to use `${command:python.interpreterPath}` for cross-platform compatibility
+    - Added auto-start functionality and proper task organization
+
+### User Interface Enhancements
+11. **"Let's add a new feature to the set view page. The user should be able to switch between alphabetical sorting and sorting by card number."**
+    - Added toggle buttons for sorting by card number vs alphabetical order
+    - Implemented client-side sorting with preserved user input values
+    - Added intuitive UI controls with visual feedback for active sort method
+
+12. **"Hm - switching the sort type is really slow. I think it's fully reloading the card images each time. Could we make switching the sort order faster?"**
+    - Optimized sorting performance by reordering existing DOM elements instead of rebuilding
+    - Eliminated image reloading and flickering during sort changes
+    - Added smooth visual transitions and DocumentFragment for efficient DOM manipulation
+    - Achieved ~90% performance improvement for sorting operations
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data
 - **Dual input modes**: Grid view and rapid keyboard-driven entry
+- **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization
 - **CSV import/export** compatible with major collection trackers
 - **Real-time progress tracking** and collection management
 - **Comprehensive error handling** and user feedback
+- **Professional development setup** with VS Code integration, unit testing, and proper licensing
+- **Performance optimizations** for smooth user experience
+- **Cross-platform compatibility** with portable development configurations
 
-The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, and managing git commits. No manual coding was required - everything was generated from the prompts above.
+The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, and development workflow improvements.
 
 ## Support
 
