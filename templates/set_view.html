@@ -36,6 +36,15 @@
                     <i class="fas fa-plus"></i> Add 4 Each
                 </button>
             </div>
+            
+            <div class="btn-group ms-3" role="group">
+                <button type="button" class="btn btn-outline-primary active" id="sortByNumber" onclick="sortCards('number')">
+                    <i class="fas fa-sort-numeric-down"></i> Card #
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="sortByName" onclick="sortCards('name')">
+                    <i class="fas fa-sort-alpha-down"></i> Name
+                </button>
+            </div>
         </div>
         <div class="col-md-6 text-end">
             <a href="/" class="btn btn-secondary">
@@ -115,6 +124,7 @@
 <script>
 const cardData = JSON.parse(document.getElementById('cardData').textContent);
 let processedCards = 0;
+let currentSort = 'number'; // Default sort by card number
 
 function updateProgress() {
     const inputs = document.querySelectorAll('.quantity-input');
@@ -138,6 +148,105 @@ function setAllQuantities(quantity) {
     inputs.forEach(input => {
         input.value = quantity;
     });
+    updateProgress();
+}
+
+function sortCards(sortType) {
+    if (currentSort === sortType) return; // Already sorted this way
+    
+    currentSort = sortType;
+    
+    // Update button states
+    document.getElementById('sortByNumber').classList.remove('active');
+    document.getElementById('sortByName').classList.remove('active');
+    document.getElementById('sortBy' + (sortType === 'number' ? 'Number' : 'Name')).classList.add('active');
+    
+    // Get current input values to preserve them
+    const currentValues = {};
+    const inputs = document.querySelectorAll('.quantity-input');
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    
+    inputs.forEach(input => {
+        const cardId = input.getAttribute('data-card-id');
+        currentValues[cardId] = {
+            quantity: input.value,
+            foil: document.querySelector(`input[type="checkbox"][data-card-id="${cardId}"]`)?.checked || false
+        };
+    });
+    
+    // Sort the card data
+    let sortedCards = [...cardData];
+    if (sortType === 'name') {
+        sortedCards.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+        // Sort by collector number (handle mixed numeric/text)
+        sortedCards.sort((a, b) => {
+            const aNum = parseInt(a.collector_number) || 0;
+            const bNum = parseInt(b.collector_number) || 0;
+            if (aNum !== bNum) {
+                return aNum - bNum;
+            }
+            return a.collector_number.localeCompare(b.collector_number);
+        });
+    }
+    
+    // Rebuild the cards container
+    const container = document.getElementById('cardsContainer');
+    container.innerHTML = '';
+    
+    sortedCards.forEach(card => {
+        const cardHtml = `
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card">
+                    <div class="row g-0">
+                        <div class="col-4">
+                            ${card.image_uris && card.image_uris.small ? 
+                                `<img src="${card.image_uris.small}" class="card-image" alt="${card.name}">` :
+                                `<div class="card-image bg-light d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-image text-muted"></i>
+                                </div>`
+                            }
+                        </div>
+                        <div class="col-8">
+                            <div class="card-body p-2">
+                                <h6 class="card-title mb-1">${card.name}</h6>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        #${card.collector_number}<br>
+                                        ${card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1)}<br>
+                                        ${card.mana_cost || ''}
+                                    </small>
+                                </p>
+                                
+                                <div class="d-flex align-items-center">
+                                    <input type="number" 
+                                           class="form-control quantity-input" 
+                                           min="0" 
+                                           max="99" 
+                                           value="${currentValues[card.id]?.quantity || 0}"
+                                           data-card-id="${card.id}"
+                                           onchange="updateProgress()"
+                                           onkeyup="if(event.key === 'Enter') { this.nextElementSibling.nextElementSibling.focus() }">
+                                    
+                                    <label class="foil-checkbox">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               data-card-id="${card.id}"
+                                               data-foil="true"
+                                               ${currentValues[card.id]?.foil ? 'checked' : ''}> 
+                                        <small>Foil</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.innerHTML += cardHtml;
+    });
+    
+    // Update progress after rebuilding
     updateProgress();
 }
 
