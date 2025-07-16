@@ -137,7 +137,7 @@ class CollectionManager:
         }
     
     def import_from_csv(self, csv_content: str) -> Dict:
-        """Import collection from CSV format"""
+        """Import collection from CSV format - supports both MTGGoldfish and DeckBox formats"""
         imported_count = 0
         errors = []
         
@@ -148,13 +148,30 @@ class CollectionManager:
             
             for row_num, row in enumerate(reader, start=2):  # Start at 2 because of header
                 try:
+                    # Handle different column name formats
                     name = row.get('Name', '').strip()
-                    set_code = row.get('Set', '').strip().lower()
-                    collector_number = row.get('Collector Number', '').strip()
-                    quantity = int(row.get('Quantity', 0))
-                    foil = row.get('Foil', '').strip().lower() in ['yes', 'true', '1']
+                    
+                    # Handle different quantity column names
+                    quantity = int(row.get('Quantity', row.get('Count', 0)))
+                    
+                    # Handle different set column names
+                    set_code = row.get('Set', row.get('Edition', '')).strip()
+                    
+                    # Handle different collector number column names
+                    collector_number = row.get('Collector Number', row.get('Card Number', '')).strip()
+                    
+                    # Handle different foil formats
+                    foil_value = row.get('Foil', '').strip().lower()
+                    foil = foil_value in ['yes', 'true', '1', 'foil']
+                    
+                    # Handle condition and language with defaults
                     condition = row.get('Condition', 'Near Mint').strip()
+                    if not condition:
+                        condition = 'Near Mint'
+                    
                     language = row.get('Language', 'English').strip()
+                    if not language:
+                        language = 'English'
                     
                     if not name or not set_code or quantity <= 0:
                         continue  # Skip invalid rows
@@ -169,7 +186,7 @@ class CollectionManager:
                         
                         self.collection[key] = {
                             'name': name,
-                            'set': set_code.upper(),
+                            'set': card_data.get('set', set_code).upper(),
                             'set_name': card_data.get('set_name', ''),
                             'collector_number': collector_number,
                             'quantity': quantity,
@@ -195,11 +212,14 @@ class CollectionManager:
             'success': imported_count > 0
         }
     
-    def _find_card_by_details(self, name: str, set_code: str, collector_number: str) -> Optional[Dict]:
+    def _find_card_by_details(self, name: str, set_identifier: str, collector_number: str) -> Optional[Dict]:
         """Find a card using Scryfall API by name, set, and collector number"""
         try:
+            # Convert set identifier to 3-letter code if needed
+            set_code = self._normalize_set_identifier(set_identifier)
+            
             # First try exact search with collector number
-            if collector_number:
+            if collector_number and set_code:
                 response = requests.get(
                     f"{ScryfallAPI.BASE_URL}/cards/{set_code}/{collector_number}"
                 )
@@ -209,32 +229,92 @@ class CollectionManager:
                     if card_data['name'].lower() == name.lower():
                         return card_data
             
-            # Fallback: search by name and set
+            # Fallback: search by name and set code
+            if set_code:
+                response = requests.get(
+                    f"{ScryfallAPI.BASE_URL}/cards/named",
+                    params={
+                        'exact': name,
+                        'set': set_code
+                    }
+                )
+                if response.status_code == 200:
+                    return response.json()
+                    
+                # Last resort: fuzzy search with set code
+                response = requests.get(
+                    f"{ScryfallAPI.BASE_URL}/cards/named",
+                    params={
+                        'fuzzy': name,
+                        'set': set_code
+                    }
+                )
+                if response.status_code == 200:
+                    return response.json()
+            
+            # If set code lookup failed, try searching by full set name
             response = requests.get(
-                f"{ScryfallAPI.BASE_URL}/cards/named",
+                f"{ScryfallAPI.BASE_URL}/cards/search",
                 params={
-                    'exact': name,
-                    'set': set_code
+                    'q': f'"{name}" set:"{set_identifier}"'
                 }
             )
             if response.status_code == 200:
-                return response.json()
-                
-            # Last resort: fuzzy search
-            response = requests.get(
-                f"{ScryfallAPI.BASE_URL}/cards/named",
-                params={
-                    'fuzzy': name,
-                    'set': set_code
-                }
-            )
-            if response.status_code == 200:
-                return response.json()
+                search_data = response.json()
+                if search_data.get('data'):
+                    return search_data['data'][0]  # Return first match
                 
         except requests.RequestException:
             pass
         
         return None
+    
+    def _normalize_set_identifier(self, set_identifier: str) -> str:
+        """Convert full set names to 3-letter codes where possible"""
+        # Common set name mappings for DeckBox format
+        set_mappings = {
+            'classic sixth edition': '6ed',
+            'sixth edition': '6ed',
+            'fifth edition': '5ed',
+            'fourth edition': '4ed',
+            'revised edition': '3ed',
+            'unlimited edition': '2ed',
+            'limited edition alpha': 'lea',
+            'limited edition beta': 'leb',
+            'zendikar': 'zen',
+            'magic 2015 core set': 'm15',
+            'magic 2014 core set': 'm14',
+            'magic 2013': 'm13',
+            'magic 2012': 'm12',
+            'magic 2011': 'm11',
+            'magic 2010': 'm10',
+            'tenth edition': '10e',
+            'ninth edition': '9ed',
+            'eighth edition': '8ed',
+            'seventh edition': '7ed',
+            'tempest': 'tmp',
+            'stronghold': 'sth',
+            'exodus': 'exo',
+            'weatherlight': 'wth',
+            'visions': 'vis',
+            'mirage': 'mir',
+            'alliances': 'all',
+            'ice age': 'ice',
+            'homelands': 'hml',
+            'fallen empires': 'fem',
+            'the dark': 'drk',
+            'legends': 'leg',
+            'antiquities': 'atq',
+            'arabian nights': 'arn'
+        }
+        
+        # If it's already a 3-letter code, return as is
+        if len(set_identifier) == 3:
+            return set_identifier.lower()
+        
+        # Try to find a mapping for the full name
+        normalized = set_identifier.lower().strip()
+        return set_mappings.get(normalized, set_identifier.lower())
     
     def clear_collection(self):
         """Clear the entire collection"""

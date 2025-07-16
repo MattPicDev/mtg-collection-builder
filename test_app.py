@@ -267,7 +267,7 @@ Lightning Bolt,neo,123,invalid,No,Near Mint,English"""
         
         self.manager.clear_collection()
         self.assertEqual(len(self.manager.collection), 0)
-
+    
 
 class TestFlaskRoutes(unittest.TestCase):
     """Test cases for Flask routes"""
@@ -580,6 +580,80 @@ class TestFlaskRoutes(unittest.TestCase):
         
         # Verify collection was cleared
         self.assertEqual(len(collection_manager.collection), 0)
+    
+    @patch('app.requests.get')
+    def test_import_deckbox_format(self, mock_get):
+        """Test importing DeckBox CSV format"""
+        # Clear collection before test
+        collection_manager.clear_collection()
+        
+        # Mock Scryfall API responses for different cards
+        def mock_api_response(url, **kwargs):
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            
+            if '/cards/6ed/195' in url:
+                # Lightning Bolt response
+                mock_response.json.return_value = {
+                    'id': 'lightning-bolt-id',
+                    'name': 'Lightning Bolt',
+                    'set': '6ed',
+                    'set_name': 'Classic Sixth Edition',
+                    'collector_number': '195',
+                    'rarity': 'common',
+                    'image_uris': {'small': 'http://example.com/bolt.jpg'}
+                }
+            elif '/cards/6ed/68' in url:
+                # Counterspell response  
+                mock_response.json.return_value = {
+                    'id': 'counterspell-id',
+                    'name': 'Counterspell',
+                    'set': '6ed',
+                    'set_name': 'Classic Sixth Edition',
+                    'collector_number': '68',
+                    'rarity': 'common',
+                    'image_uris': {'small': 'http://example.com/counter.jpg'}
+                }
+            else:
+                # Default fallback
+                mock_response.json.return_value = {
+                    'id': 'default-id',
+                    'name': 'Default Card',
+                    'set': '6ed',
+                    'set_name': 'Classic Sixth Edition',
+                    'collector_number': '1',
+                    'rarity': 'common',
+                    'image_uris': {'small': 'http://example.com/default.jpg'}
+                }
+            
+            return mock_response
+        
+        mock_get.side_effect = mock_api_response
+        
+        # DeckBox CSV format
+        deckbox_csv = '''Count,"Tradelist Count",Name,Edition,"Card Number",Condition,Foil,Signed,"Artist Proof","Altered Art",Misprint,Promo,Textless,"My Price"
+2,,"Lightning Bolt","Classic Sixth Edition",195,,,,,,,,,0.25
+1,,"Counterspell","Classic Sixth Edition",68,,foil,,,,,,,1.50'''
+        
+        result = collection_manager.import_from_csv(deckbox_csv)
+        
+        # Should successfully import both cards
+        self.assertEqual(result['imported_count'], 2)
+        self.assertTrue(result['success'])
+        self.assertEqual(len(result['errors']), 0)
+        
+        # Check that cards were added to collection
+        self.assertEqual(len(collection_manager.collection), 2)
+        
+        # Check that foil detection works
+        foil_cards = [card for card in collection_manager.collection.values() if card['foil']]
+        regular_cards = [card for card in collection_manager.collection.values() if not card['foil']]
+        
+        self.assertEqual(len(foil_cards), 1)
+        self.assertEqual(len(regular_cards), 1)
+        self.assertEqual(foil_cards[0]['name'], 'Counterspell')  # Counterspell is foil in CSV
+        self.assertEqual(regular_cards[0]['name'], 'Lightning Bolt')  # Lightning Bolt is regular
+        self.assertEqual(regular_cards[0]['quantity'], 2)
 
 
 if __name__ == '__main__':

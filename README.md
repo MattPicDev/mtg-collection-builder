@@ -20,7 +20,7 @@ I have intentionally not added any statefulness to this application, to make it 
 - **Real-time name filtering**: Instantly filter cards by name in grid view as you type
 - **Optimized performance**: Fast client-side sorting with DOM reordering for smooth user experience
 - **Scryfall API integration**: Automatically fetches card data and images
-- **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers
+- **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers with flexible format support
 - **Collection import**: Upload existing CSV collections to quickly populate your data
 - **Responsive web interface**: Works on desktop and mobile devices
 - **Real-time progress tracking**: See your progress as you add cards
@@ -115,6 +115,9 @@ This format is compatible with:
 
 ### Import Features
 - **Smart card lookup**: Uses Scryfall API to verify card details
+- **Multiple format support**: Handles both MTGGoldfish and DeckBox CSV formats automatically
+- **Flexible column mapping**: Supports different column names (Count/Quantity, Edition/Set, etc.)
+- **Set name normalization**: Converts full set names to standard 3-letter codes
 - **Error reporting**: Shows which cards couldn't be imported
 - **Flexible options**: Choose to replace or merge with existing collection
 - **Progress tracking**: Real-time feedback during import process
@@ -281,6 +284,14 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Removed unnecessary multi-version testing matrix
     - Focused on modern Python version appropriate for personal use
 
+19. **"I have a DeckBox collection format file, at 'C:\Users\mopic\Downloads\myCollection.csv', that does not work with the import functionality. It imports 0 cards. Could you investigate why?"**
+    - Enhanced CSV import functionality to support both MTGGoldfish and DeckBox formats
+    - Added flexible column name mapping (Count/Quantity, Edition/Set, Card Number/Collector Number)
+    - Improved foil detection to handle both "Yes/No" and "foil" text formats
+    - Added set name normalization to convert full names like "Classic Sixth Edition" to "6ed"
+    - Implemented fallback search strategies for better card matching
+    - Added comprehensive test coverage for DeckBox format import
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data
@@ -288,7 +299,7 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
 - **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
 - **Real-time filtering**: Instant name-based card filtering with smart progress tracking
 - **Optimized UI layout**: Four-tier control structure with proper visual hierarchy and spacing
-- **CSV import/export** compatible with major collection trackers
+- **CSV import/export** compatible with major collection trackers with flexible format support
 - **Real-time progress tracking** with improved UI layout and positioning
 - **Comprehensive error handling** and user feedback
 - **Professional development setup** with VS Code integration, unit testing, and streamlined CI/CD
