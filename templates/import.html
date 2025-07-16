@@ -57,11 +57,16 @@
                 <h5><i class="fas fa-cog fa-spin"></i> Importing...</h5>
             </div>
             <div class="card-body">
-                <div class="progress">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                         role="progressbar" style="width: 100%">
-                        Processing your collection...
+                <div class="progress mb-3">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%">
+                        0%
                     </div>
+                </div>
+                <div class="text-center">
+                    <div id="progressText">Starting import...</div>
+                    <div id="currentCard" class="text-muted mt-1"></div>
+                    <div id="progressStats" class="text-muted mt-1"></div>
                 </div>
             </div>
         </div>
@@ -168,62 +173,111 @@ function uploadFile(file) {
     const formData = new FormData();
     formData.append('file', file);
     
-    fetch('/import', {
+    fetch('/import_with_progress', {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
-        // Hide progress
-        document.getElementById('importProgress').style.display = 'none';
-        
-        // Show results
-        document.getElementById('importResults').style.display = 'block';
-        
         if (data.error) {
-            document.getElementById('resultsTitle').innerHTML = '<i class="fas fa-times-circle text-danger"></i> Import Failed';
-            document.getElementById('resultsContent').innerHTML = `
-                <div class="alert alert-danger">
-                    <strong>Error:</strong> ${data.error}
-                </div>
-            `;
-        } else {
-            const isSuccess = data.success;
-            const iconClass = isSuccess ? 'fas fa-check-circle text-success' : 'fas fa-exclamation-triangle text-warning';
-            const title = isSuccess ? 'Import Completed' : 'Import Completed with Issues';
-            
-            document.getElementById('resultsTitle').innerHTML = `<i class="${iconClass}"></i> ${title}`;
-            
-            let content = `
-                <div class="alert ${isSuccess ? 'alert-success' : 'alert-warning'}">
-                    <strong>Imported ${data.imported_count} cards successfully!</strong>
-                </div>
-            `;
-            
-            if (data.errors && data.errors.length > 0) {
-                content += `
-                    <div class="alert alert-warning">
-                        <strong>Issues encountered:</strong>
-                        <ul class="mt-2 mb-0">
-                            ${data.errors.map(error => `<li>${error}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-            }
-            
-            document.getElementById('resultsContent').innerHTML = content;
+            showError(data.error);
+            return;
         }
+        
+        // Start progress tracking
+        trackProgress(data.import_id);
     })
     .catch(error => {
-        document.getElementById('importProgress').style.display = 'none';
-        document.getElementById('importResults').style.display = 'block';
-        document.getElementById('resultsTitle').innerHTML = '<i class="fas fa-times-circle text-danger"></i> Import Failed';
-        document.getElementById('resultsContent').innerHTML = `
-            <div class="alert alert-danger">
-                <strong>Network Error:</strong> ${error.message}
+        showError(`Network Error: ${error.message}`);
+    });
+}
+
+function trackProgress(importId) {
+    const eventSource = new EventSource(`/import_progress/${importId}`);
+    
+    eventSource.onmessage = function(event) {
+        const progress = JSON.parse(event.data);
+        updateProgress(progress);
+        
+        if (progress.status === 'complete') {
+            eventSource.close();
+            showResults(progress.result);
+        } else if (progress.status === 'error') {
+            eventSource.close();
+            showError(progress.error);
+        }
+    };
+    
+    eventSource.onerror = function() {
+        eventSource.close();
+        showError('Connection lost while tracking progress');
+    };
+}
+
+function updateProgress(progress) {
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const currentCard = document.getElementById('currentCard');
+    const progressStats = document.getElementById('progressStats');
+    
+    const percentage = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+    
+    progressBar.style.width = percentage + '%';
+    progressBar.textContent = percentage + '%';
+    
+    if (progress.status === 'processing') {
+        progressText.textContent = 'Processing cards...';
+        currentCard.textContent = progress.card_name ? `Currently processing: ${progress.card_name}` : '';
+        progressStats.textContent = `${progress.current} of ${progress.total} cards processed`;
+    } else if (progress.status === 'complete') {
+        progressText.textContent = 'Import complete!';
+        currentCard.textContent = '';
+        progressStats.textContent = `Finished processing ${progress.total} cards`;
+    }
+}
+
+function showError(errorMessage) {
+    document.getElementById('importProgress').style.display = 'none';
+    document.getElementById('importResults').style.display = 'block';
+    document.getElementById('resultsTitle').innerHTML = '<i class="fas fa-times-circle text-danger"></i> Import Failed';
+    document.getElementById('resultsContent').innerHTML = `
+        <div class="alert alert-danger">
+            <strong>Error:</strong> ${errorMessage}
+        </div>
+    `;
+}
+
+function showResults(data) {
+    // Hide progress
+    document.getElementById('importProgress').style.display = 'none';
+    
+    // Show results
+    document.getElementById('importResults').style.display = 'block';
+    
+    const isSuccess = data.success;
+    const iconClass = isSuccess ? 'fas fa-check-circle text-success' : 'fas fa-exclamation-triangle text-warning';
+    const title = isSuccess ? 'Import Completed' : 'Import Completed with Issues';
+    
+    document.getElementById('resultsTitle').innerHTML = `<i class="${iconClass}"></i> ${title}`;
+    
+    let content = `
+        <div class="alert ${isSuccess ? 'alert-success' : 'alert-warning'}">
+            <strong>Imported ${data.imported_count} cards successfully!</strong>
+        </div>
+    `;
+    
+    if (data.errors && data.errors.length > 0) {
+        content += `
+            <div class="alert alert-warning">
+                <strong>Issues encountered:</strong>
+                <ul class="mt-2 mb-0">
+                    ${data.errors.map(error => `<li>${error}</li>`).join('')}
+                </ul>
             </div>
         `;
-    });
+    }
+    
+    document.getElementById('resultsContent').innerHTML = content;
 }
 
 function resetForm() {

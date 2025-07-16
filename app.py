@@ -1,12 +1,35 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response
 import requests
 import csv
 import io
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Generator
 import time
+import json
+import uuid
+import threading
+from queue import Queue
 
 app = Flask(__name__)
+
+# Progress tracking system
+import_progress = {}
+
+def generate_import_id():
+    """Generate a unique ID for import operations"""
+    return str(uuid.uuid4())
+
+def update_import_progress(import_id: str, progress_data: Dict):
+    """Update progress for an import operation"""
+    import_progress[import_id] = progress_data
+    
+def get_import_progress(import_id: str) -> Dict:
+    """Get progress for an import operation"""
+    return import_progress.get(import_id, {})
+
+def cleanup_import_progress(import_id: str):
+    """Clean up progress data for completed import"""
+    import_progress.pop(import_id, None)
 
 class ScryfallAPI:
     """Handler for Scryfall API interactions"""
@@ -164,7 +187,7 @@ class CollectionManager:
             'sets_represented': len(set(card['set'] for card in self.collection.values() if card['quantity'] > 0))
         }
     
-    def import_from_csv(self, csv_content: str) -> Dict:
+    def import_from_csv(self, csv_content: str, progress_callback=None) -> Dict:
         """Import collection from CSV format - supports both MTGGoldfish and DeckBox formats"""
         imported_count = 0
         errors = []
@@ -174,8 +197,21 @@ class CollectionManager:
             csv_file = io.StringIO(csv_content)
             reader = csv.DictReader(csv_file)
             
-            for row_num, row in enumerate(reader, start=2):  # Start at 2 because of header
+            # Convert to list to get total count
+            rows = list(reader)
+            total_rows = len(rows)
+            
+            for row_num, row in enumerate(rows, start=2):  # Start at 2 because of header
                 try:
+                    # Update progress if callback provided
+                    if progress_callback:
+                        progress_callback({
+                            'current': row_num - 1,
+                            'total': total_rows,
+                            'card_name': row.get('Name', '').strip(),
+                            'status': 'processing'
+                        })
+                    
                     # Handle different column name formats
                     name = row.get('Name', '').strip()
                     
@@ -225,11 +261,47 @@ class CollectionManager:
                             'image_url': card_data.get('image_uris', {}).get('small', '')
                         }
                         imported_count += 1
+                        
+                        # Update progress with success
+                        if progress_callback:
+                            progress_callback({
+                                'current': row_num - 1,
+                                'total': total_rows,
+                                'card_name': name,
+                                'status': 'imported'
+                            })
                     else:
                         errors.append(f"Row {row_num}: Could not find card '{name}' in set '{set_code}'")
                         
+                        # Update progress with error
+                        if progress_callback:
+                            progress_callback({
+                                'current': row_num - 1,
+                                'total': total_rows,
+                                'card_name': name,
+                                'status': 'error'
+                            })
+                        
                 except (ValueError, KeyError) as e:
                     errors.append(f"Row {row_num}: Invalid data format - {str(e)}")
+                    
+                    # Update progress with error
+                    if progress_callback:
+                        progress_callback({
+                            'current': row_num - 1,
+                            'total': total_rows,
+                            'card_name': row.get('Name', ''),
+                            'status': 'error'
+                        })
+            
+            # Final progress update
+            if progress_callback:
+                progress_callback({
+                    'current': total_rows,
+                    'total': total_rows,
+                    'card_name': '',
+                    'status': 'complete'
+                })
                     
         except Exception as e:
             errors.append(f"CSV parsing error: {str(e)}")
@@ -351,6 +423,74 @@ class CollectionManager:
 # Global collection manager
 collection_manager = CollectionManager()
 
+# Global dictionary to store import progress
+import_progress = {}
+
+# Global progress tracking
+progress_queues = {}
+progress_lock = threading.Lock()
+
+def get_progress_queue(session_id):
+    """Get or create a progress queue for a session"""
+    with progress_lock:
+        if session_id not in progress_queues:
+            progress_queues[session_id] = Queue()
+        return progress_queues[session_id]
+
+def cleanup_progress_queue(session_id):
+    """Remove a progress queue when done"""
+    with progress_lock:
+        if session_id in progress_queues:
+            del progress_queues[session_id]
+
+class ImportProgressTracker:
+    """Tracks progress for CSV imports"""
+    
+    def __init__(self, import_id: str):
+        self.import_id = import_id
+        self.total_rows = 0
+        self.current_row = 0
+        self.imported_count = 0
+        self.errors = []
+        self.current_card = ""
+        self.status = "starting"
+        self.completed = False
+        
+    def update_progress(self, current_row: int, current_card: str, imported_count: int, errors: List[str]):
+        """Update progress information"""
+        self.current_row = current_row
+        self.current_card = current_card
+        self.imported_count = imported_count
+        self.errors = errors
+        self.status = "processing"
+        
+    def set_total_rows(self, total_rows: int):
+        """Set the total number of rows to process"""
+        self.total_rows = total_rows
+        
+    def complete(self, success: bool):
+        """Mark import as completed"""
+        self.completed = True
+        self.status = "completed" if success else "failed"
+        
+    def get_progress_data(self) -> Dict:
+        """Get current progress data"""
+        percentage = 0
+        if self.total_rows > 0:
+            percentage = min(100, (self.current_row / self.total_rows) * 100)
+            
+        return {
+            'import_id': self.import_id,
+            'total_rows': self.total_rows,
+            'current_row': self.current_row,
+            'imported_count': self.imported_count,
+            'errors': self.errors,
+            'current_card': self.current_card,
+            'status': self.status,
+            'percentage': percentage,
+            'completed': self.completed
+        }
+
 @app.route('/')
 def index():
     """Main page - show set selection"""
@@ -459,6 +599,78 @@ def clear_collection():
     """API endpoint to clear the entire collection"""
     collection_manager.clear_collection()
     return jsonify({'status': 'success', 'message': 'Collection cleared'})
+
+@app.route('/import_with_progress', methods=['POST'])
+def import_collection_with_progress():
+    """Import collection with progress tracking"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not file.filename.lower().endswith('.csv'):
+        return jsonify({'error': 'Please upload a CSV file'}), 400
+    
+    try:
+        # Generate unique import ID
+        import_id = generate_import_id()
+        
+        # Read and decode the file content
+        csv_content = file.read().decode('utf-8')
+        
+        # Create progress callback
+        def progress_callback(progress_data):
+            update_import_progress(import_id, progress_data)
+        
+        # Start import in background thread
+        def run_import():
+            try:
+                result = collection_manager.import_from_csv(csv_content, progress_callback)
+                # Store final result
+                update_import_progress(import_id, {
+                    'status': 'complete',
+                    'result': result,
+                    'current': result.get('imported_count', 0),
+                    'total': result.get('imported_count', 0)
+                })
+            except Exception as e:
+                update_import_progress(import_id, {
+                    'status': 'error',
+                    'error': str(e),
+                    'current': 0,
+                    'total': 0
+                })
+        
+        thread = threading.Thread(target=run_import)
+        thread.start()
+        
+        return jsonify({'import_id': import_id})
+        
+    except Exception as e:
+        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+
+@app.route('/import_progress/<import_id>')
+def import_progress_stream(import_id):
+    """Server-sent events endpoint for import progress"""
+    def generate():
+        while True:
+            progress_data = get_import_progress(import_id)
+            
+            if progress_data:
+                yield f"data: {json.dumps(progress_data)}\n\n"
+                
+                # If import is complete, clean up and stop
+                if progress_data.get('status') in ['complete', 'error']:
+                    cleanup_import_progress(import_id)
+                    break
+            
+            time.sleep(0.1)  # Poll every 100ms
+    
+    return Response(generate(), mimetype='text/plain')
+
+# ...existing routes...
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)

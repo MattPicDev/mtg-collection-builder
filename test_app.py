@@ -358,6 +358,89 @@ Lightning Bolt,neo,123,invalid,No,Near Mint,English"""
         self.manager.clear_collection()
         self.assertEqual(len(self.manager.collection), 0)
     
+    @patch('app.requests.get')
+    def test_import_from_csv_with_progress_callback(self, mock_get):
+        """Test CSV import with progress tracking"""
+        # Mock Scryfall API response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = self.sample_card
+        mock_get.return_value = mock_response
+        
+        csv_content = """Name,Set,Collector Number,Quantity,Foil,Condition,Language
+Lightning Bolt,neo,123,2,No,Near Mint,English
+Counterspell,neo,456,1,Yes,Near Mint,English"""
+        
+        # Track progress updates
+        progress_updates = []
+        
+        def progress_callback(progress_data):
+            progress_updates.append(progress_data)
+        
+        result = self.manager.import_from_csv(csv_content, progress_callback)
+        
+        self.assertTrue(result['success'])
+        self.assertEqual(result['imported_count'], 2)
+        self.assertEqual(len(result['errors']), 0)
+        
+        # Check progress updates
+        self.assertGreater(len(progress_updates), 0)
+        
+        # Check that we got processing updates
+        processing_updates = [u for u in progress_updates if u['status'] == 'processing']
+        self.assertEqual(len(processing_updates), 2)  # One for each card
+        
+        # Check that we got imported updates
+        imported_updates = [u for u in progress_updates if u['status'] == 'imported']
+        self.assertEqual(len(imported_updates), 2)  # One for each card
+        
+        # Check that we got a complete update
+        complete_updates = [u for u in progress_updates if u['status'] == 'complete']
+        self.assertEqual(len(complete_updates), 1)
+        
+        # Check final update
+        final_update = complete_updates[0]
+        self.assertEqual(final_update['current'], 2)
+        self.assertEqual(final_update['total'], 2)
+    
+    @patch('app.requests.get')
+    def test_import_from_csv_with_progress_callback_errors(self, mock_get):
+        """Test CSV import with progress tracking when cards aren't found"""
+        # Mock Scryfall API response (card not found)
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+        
+        csv_content = """Name,Set,Collector Number,Quantity,Foil,Condition,Language
+Nonexistent Card,neo,999,1,No,Near Mint,English"""
+        
+        # Track progress updates
+        progress_updates = []
+        
+        def progress_callback(progress_data):
+            progress_updates.append(progress_data)
+        
+        result = self.manager.import_from_csv(csv_content, progress_callback)
+        
+        self.assertFalse(result['success'])
+        self.assertEqual(result['imported_count'], 0)
+        self.assertEqual(len(result['errors']), 1)
+        
+        # Check progress updates
+        self.assertGreater(len(progress_updates), 0)
+        
+        # Check that we got processing updates
+        processing_updates = [u for u in progress_updates if u['status'] == 'processing']
+        self.assertEqual(len(processing_updates), 1)
+        
+        # Check that we got error updates
+        error_updates = [u for u in progress_updates if u['status'] == 'error']
+        self.assertEqual(len(error_updates), 1)
+        
+        # Check that we got a complete update
+        complete_updates = [u for u in progress_updates if u['status'] == 'complete']
+        self.assertEqual(len(complete_updates), 1)
+    
 
 class TestFlaskRoutes(unittest.TestCase):
     """Test cases for Flask routes"""
@@ -836,7 +919,7 @@ class TestFlaskRoutes(unittest.TestCase):
         
         # Check filename defaults to MTGGoldfish
         self.assertIn('mtg_collection_mtggoldfish.csv', response.headers.get('Content-Disposition', ''))
-    
+
 
 if __name__ == '__main__':
     unittest.main()
