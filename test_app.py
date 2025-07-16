@@ -64,58 +64,56 @@ class TestScryfallAPI(unittest.TestCase):
         
         self.assertEqual(sets, [])
     
-    @patch('app.requests.get')
-    @patch('app.time.sleep')  # Mock sleep to speed up tests
-    def test_get_set_cards_success(self, mock_sleep, mock_get):
-        """Test successful retrieval of cards from a set"""
-        # Mock paginated API response
-        mock_response_page1 = MagicMock()
-        mock_response_page1.raise_for_status.return_value = None
-        mock_response_page1.json.return_value = {
-            'data': [
-                {
-                    'id': 'card1',
-                    'name': 'Lightning Bolt',
-                    'set': 'neo',
-                    'collector_number': '1'
-                }
-            ],
-            'has_more': True
-        }
+    @patch('app.bulk_cache')
+    def test_get_set_cards_success(self, mock_cache):
+        """Test successful retrieval of set cards with cache"""
+        # Mock cache returning some cards
+        mock_cache.get_set_cards_from_cache.return_value = [
+            {
+                'id': 'card1',
+                'name': 'Lightning Bolt',
+                'set': 'testset',
+                'collector_number': '1',
+                'rarity': 'common',
+                'image_uris': {'normal': 'http://example.com/bolt.jpg'},
+                '_source': 'cache'
+            },
+            {
+                'id': 'card2',
+                'name': 'Counterspell',
+                'set': 'testset',
+                'collector_number': '2',
+                'rarity': 'common',
+                'image_uris': {'normal': 'http://example.com/counter.jpg'},
+                '_source': 'cache'
+            }
+        ]
         
-        mock_response_page2 = MagicMock()
-        mock_response_page2.raise_for_status.return_value = None
-        mock_response_page2.json.return_value = {
-            'data': [
-                {
-                    'id': 'card2',
-                    'name': 'Counterspell',
-                    'set': 'neo',
-                    'collector_number': '2'
-                }
-            ],
-            'has_more': False
-        }
-        
-        mock_get.side_effect = [mock_response_page1, mock_response_page2]
-        
-        cards = ScryfallAPI.get_set_cards('neo')
+        cards = ScryfallAPI.get_set_cards('testset')
         
         self.assertEqual(len(cards), 2)
         self.assertEqual(cards[0]['name'], 'Lightning Bolt')
         self.assertEqual(cards[1]['name'], 'Counterspell')
         
-        # Verify pagination was handled
-        self.assertEqual(mock_get.call_count, 2)
+        # Verify cache was used
+        mock_cache.get_set_cards_from_cache.assert_called_once_with('testset')
     
-    @patch('app.requests.get')
-    def test_get_set_cards_api_error(self, mock_get):
+    @patch('app.bulk_cache')
+    def test_get_set_cards_api_error(self, mock_cache):
         """Test handling of API errors when fetching cards"""
-        mock_get.side_effect = requests.RequestException("API Error")
+        # Mock cache returning no cards (empty cache)
+        mock_cache.get_set_cards_from_cache.return_value = []
         
-        cards = ScryfallAPI.get_set_cards('neo')
-        
-        self.assertEqual(cards, [])
+        # Mock the API call also failing
+        with patch('app.requests.get') as mock_get:
+            mock_get.side_effect = requests.RequestException("API Error")
+            
+            cards = ScryfallAPI.get_set_cards('testset')
+            
+            self.assertEqual(cards, [])
+            
+            # Verify cache was checked first
+            mock_cache.get_set_cards_from_cache.assert_called_once_with('testset')
 
 
 class TestCollectionManager(unittest.TestCase):
@@ -980,6 +978,58 @@ Black Lotus,LEA,232,1,No,Near Mint,English'''
         
         data = json.loads(response.data)
         self.assertIn('refresh_id', data)
+        
+        # Test set-specific cache status
+        response = self.app.get('/api/cache/set/neo')
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.data)
+        self.assertIn('set_code', data)
+        self.assertIn('cached_cards', data)
+        self.assertIn('cache_available', data)
+
+    @patch('app.ScryfallAPI.get_set_cards')
+    def test_set_view_with_cache_performance(self, mock_get_set_cards):
+        """Test set view route with cache performance stats"""
+        # Mock cards with cache source indicators
+        mock_cards = [
+            {'id': 'card1', 'name': 'Test Card 1', '_source': 'cache'},
+            {'id': 'card2', 'name': 'Test Card 2', '_source': 'api'},
+            {'id': 'card3', 'name': 'Test Card 3', '_source': 'cache'},
+        ]
+        mock_get_set_cards.return_value = mock_cards
+        
+        with patch('app.ScryfallAPI.get_sets') as mock_get_sets:
+            mock_get_sets.return_value = [
+                {'code': 'neo', 'name': 'Test Set', 'set_type': 'expansion', 'released_at': '2022-01-01', 'card_count': 300}
+            ]
+            
+            response = self.app.get('/set/neo')
+            self.assertEqual(response.status_code, 200)
+            
+            # Check that performance stats are calculated
+            self.assertIn(b'Performance:', response.data)
+            
+    @patch('app.ScryfallAPI.get_set_cards')
+    def test_rapid_view_with_cache_performance(self, mock_get_set_cards):
+        """Test rapid view route with cache performance stats"""
+        # Mock cards with cache source indicators
+        mock_cards = [
+            {'id': 'card1', 'name': 'Test Card 1', '_source': 'cache'},
+            {'id': 'card2', 'name': 'Test Card 2', '_source': 'cache'},
+        ]
+        mock_get_set_cards.return_value = mock_cards
+        
+        with patch('app.ScryfallAPI.get_sets') as mock_get_sets:
+            mock_get_sets.return_value = [
+                {'code': 'neo', 'name': 'Test Set', 'set_type': 'expansion', 'released_at': '2022-01-01', 'card_count': 300}
+            ]
+            
+            response = self.app.get('/set/neo/rapid')
+            self.assertEqual(response.status_code, 200)
+            
+            # Check that performance stats are calculated
+            self.assertIn(b'Performance:', response.data)
 
     # ...existing tests...
 

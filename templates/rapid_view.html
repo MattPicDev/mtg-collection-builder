@@ -88,6 +88,41 @@
             </div>
         </div>
     </div>
+    
+    <!-- Cache Performance Info -->
+    {% if performance_stats %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info py-2">
+                <div class="row">
+                    <div class="col-md-8">
+                        <small>
+                            <strong><i class="fas fa-tachometer-alt"></i> Performance:</strong>
+                            {% if performance_stats.cache_hits > 0 %}
+                                {{ performance_stats.cache_hits }} cards from cache, 
+                                {{ performance_stats.api_calls }} from API
+                                ({{ "%.1f"|format(performance_stats.cache_hit_rate) }}% cache hit rate)
+                            {% else %}
+                                All {{ performance_stats.total_cards }} cards fetched from API
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <small class="text-muted">
+                            {% if performance_stats.cache_hit_rate > 80 %}
+                                <i class="fas fa-check-circle text-success"></i> Excellent performance
+                            {% elif performance_stats.cache_hit_rate > 50 %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i> Good performance
+                            {% else %}
+                                <i class="fas fa-info-circle text-primary"></i> Cards cached for next time
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Hidden input for rapid entry -->

@@ -341,6 +341,76 @@ class BulkDataCache:
             'last_update': last_update[0] if last_update else None,
             'cache_valid': self.is_cache_valid()
         }
+    
+    def get_set_cards_from_cache(self, set_code: str) -> List[Dict]:
+        """Get all cards from a specific set from cache"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT data_json FROM cards_cache 
+            WHERE LOWER(set_code) = LOWER(?)
+            ORDER BY CAST(collector_number AS INTEGER), collector_number
+        ''', (set_code,))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [json.loads(result[0]) for result in results]
+    
+    def cache_cards_batch(self, cards: List[Dict]) -> int:
+        """Cache a batch of cards from API responses"""
+        if not cards:
+            return 0
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cached_count = 0
+        for card in cards:
+            try:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO cards_cache 
+                    (id, name, set_code, collector_number, set_name, rarity, image_url, data_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    card['id'],
+                    card['name'],
+                    card['set'],
+                    card['collector_number'],
+                    card.get('set_name', ''),
+                    card.get('rarity', ''),
+                    card.get('image_uris', {}).get('small', ''),
+                    json.dumps(card),
+                    datetime.now().isoformat()
+                ))
+                cached_count += 1
+            except Exception as e:
+                print(f"Error caching card {card.get('name', 'unknown')}: {e}")
+        
+        conn.commit()
+        conn.close()
+        
+        return cached_count
+    
+    def get_set_completion_stats(self, set_code: str) -> Dict:
+        """Get cache completion statistics for a specific set"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT COUNT(*) FROM cards_cache 
+            WHERE LOWER(set_code) = LOWER(?)
+        ''', (set_code,))
+        
+        cached_count = cursor.fetchone()[0]
+        conn.close()
+        
+        return {
+            'set_code': set_code,
+            'cached_cards': cached_count,
+            'cache_available': cached_count > 0
+        }
 
 # Global cache instance
 bulk_cache = BulkDataCache()
@@ -402,10 +472,23 @@ class ScryfallAPI:
     
     @staticmethod
     def get_set_cards(set_code: str) -> List[Dict]:
-        """Fetch all cards from a specific set"""
+        """Fetch all cards from a specific set using hybrid cache approach"""
+        # First try to get cards from cache
+        cached_cards = bulk_cache.get_set_cards_from_cache(set_code)
+        
+        if cached_cards:
+            # Mark as cache source and return
+            for card in cached_cards:
+                card['_source'] = 'cache'
+            print(f"Retrieved {len(cached_cards)} cards for set {set_code} from cache")
+            return cached_cards
+        
+        # If not in cache, fetch from API
         try:
             cards = []
             page = 1
+            
+            print(f"Fetching cards for set {set_code} from Scryfall API...")
             
             while True:
                 response = requests.get(
@@ -426,6 +509,15 @@ class ScryfallAPI:
                 
                 page += 1
                 time.sleep(0.1)  # Rate limiting
+            
+            # Cache the fetched cards for future use
+            if cards:
+                cached_count = bulk_cache.cache_cards_batch(cards)
+                print(f"Cached {cached_count} cards for set {set_code}")
+                
+                # Mark as API source
+                for card in cards:
+                    card['_source'] = 'api'
             
             return cards
         except requests.RequestException as e:
@@ -887,7 +979,25 @@ def set_view(set_code: str):
     if not set_info:
         return "Set not found", 404
     
-    return render_template('set_view.html', cards=cards, set_info=set_info)
+    # Get cache statistics for this set
+    cache_stats = bulk_cache.get_set_completion_stats(set_code)
+    
+    # Count cache hits vs API calls
+    cache_hits = sum(1 for card in cards if card.get('_source') == 'cache')
+    api_calls = sum(1 for card in cards if card.get('_source') == 'api')
+    
+    performance_stats = {
+        'cache_hits': cache_hits,
+        'api_calls': api_calls,
+        'total_cards': len(cards),
+        'cache_hit_rate': (cache_hits / len(cards) * 100) if cards else 0
+    }
+    
+    return render_template('set_view.html', 
+                         cards=cards, 
+                         set_info=set_info,
+                         cache_stats=cache_stats,
+                         performance_stats=performance_stats)
 
 @app.route('/set/<set_code>/rapid')
 def set_rapid_view(set_code: str):
@@ -898,7 +1008,25 @@ def set_rapid_view(set_code: str):
     if not set_info:
         return "Set not found", 404
     
-    return render_template('rapid_view.html', cards=cards, set_info=set_info)
+    # Get cache statistics for this set
+    cache_stats = bulk_cache.get_set_completion_stats(set_code)
+    
+    # Count cache hits vs API calls
+    cache_hits = sum(1 for card in cards if card.get('_source') == 'cache')
+    api_calls = sum(1 for card in cards if card.get('_source') == 'api')
+    
+    performance_stats = {
+        'cache_hits': cache_hits,
+        'api_calls': api_calls,
+        'total_cards': len(cards),
+        'cache_hit_rate': (cache_hits / len(cards) * 100) if cards else 0
+    }
+    
+    return render_template('rapid_view.html', 
+                         cards=cards, 
+                         set_info=set_info,
+                         cache_stats=cache_stats,
+                         performance_stats=performance_stats)
 
 @app.route('/api/add_card', methods=['POST'])
 def add_card():
@@ -1102,6 +1230,12 @@ def cache_status():
         'last_update': stats['last_update'],
         'cache_size_mb': os.path.getsize(CACHE_DB_PATH) / (1024 * 1024) if os.path.exists(CACHE_DB_PATH) else 0
     })
+
+@app.route('/api/cache/set/<set_code>')
+def set_cache_status(set_code: str):
+    """API endpoint to get cache status for a specific set"""
+    stats = bulk_cache.get_set_completion_stats(set_code)
+    return jsonify(stats)
 
 @app.route('/api/cache/refresh', methods=['POST'])
 def refresh_cache():

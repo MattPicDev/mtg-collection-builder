@@ -294,3 +294,137 @@ class TestBulkDataCache:
         assert stats['total_sets'] == 2  # lea and zen
         assert stats['last_update'] is not None
         assert stats['cache_valid'] is True
+    
+    def test_get_set_cards_from_cache(self):
+        """Test retrieving cards for a specific set from cache"""
+        # Add test data
+        conn = sqlite3.connect(self.temp_db.name)
+        cursor = conn.cursor()
+        
+        # Add cards for LEA set
+        lea_cards = [
+            {'id': 'card1', 'name': 'Lightning Bolt', 'set': 'lea', 'collector_number': '161'},
+            {'id': 'card2', 'name': 'Black Lotus', 'set': 'lea', 'collector_number': '232'},
+        ]
+        
+        # Add cards for ZEN set
+        zen_cards = [
+            {'id': 'card3', 'name': 'Zendikar Card', 'set': 'zen', 'collector_number': '001'},
+        ]
+        
+        for card in lea_cards + zen_cards:
+            cursor.execute('''
+                INSERT INTO cards_cache 
+                (id, name, set_code, collector_number, set_name, rarity, image_url, data_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                card['id'],
+                card['name'],
+                card['set'],
+                card['collector_number'],
+                card['set'],
+                'common',
+                '',
+                json.dumps(card),
+                '2023-01-01T00:00:00'
+            ))
+        
+        conn.commit()
+        conn.close()
+        
+        # Test getting LEA cards
+        lea_results = self.cache.get_set_cards_from_cache('lea')
+        assert len(lea_results) == 2
+        assert all(card['set'] == 'lea' for card in lea_results)
+        
+        # Test getting ZEN cards
+        zen_results = self.cache.get_set_cards_from_cache('zen')
+        assert len(zen_results) == 1
+        assert zen_results[0]['set'] == 'zen'
+        
+        # Test getting non-existent set
+        empty_results = self.cache.get_set_cards_from_cache('nonexistent')
+        assert len(empty_results) == 0
+    
+    def test_cache_cards_batch(self):
+        """Test batch caching of cards"""
+        test_cards = [
+            {
+                'id': 'card1',
+                'name': 'Lightning Bolt',
+                'set': 'lea',
+                'collector_number': '161',
+                'set_name': 'Limited Edition Alpha',
+                'rarity': 'common',
+                'image_uris': {'small': 'http://example.com/image1.jpg'}
+            },
+            {
+                'id': 'card2',
+                'name': 'Black Lotus',
+                'set': 'lea',
+                'collector_number': '232',
+                'set_name': 'Limited Edition Alpha',
+                'rarity': 'rare',
+                'image_uris': {'small': 'http://example.com/image2.jpg'}
+            }
+        ]
+        
+        # Cache the cards
+        cached_count = self.cache.cache_cards_batch(test_cards)
+        assert cached_count == 2
+        
+        # Verify they were cached
+        conn = sqlite3.connect(self.temp_db.name)
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM cards_cache')
+        count = cursor.fetchone()[0]
+        assert count == 2
+        
+        # Verify specific card data
+        cursor.execute('SELECT * FROM cards_cache WHERE name = ?', ('Lightning Bolt',))
+        row = cursor.fetchone()
+        assert row is not None
+        assert row[1] == 'Lightning Bolt'  # name
+        assert row[2] == 'lea'  # set_code
+        assert row[3] == '161'  # collector_number
+        
+        conn.close()
+    
+    def test_get_set_completion_stats(self):
+        """Test getting completion statistics for a set"""
+        # Add test data
+        conn = sqlite3.connect(self.temp_db.name)
+        cursor = conn.cursor()
+        
+        # Add some LEA cards
+        for i in range(3):
+            cursor.execute('''
+                INSERT INTO cards_cache 
+                (id, name, set_code, collector_number, set_name, rarity, image_url, data_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                f'card{i}',
+                f'Card {i}',
+                'lea',
+                str(i),
+                'Limited Edition Alpha',
+                'common',
+                '',
+                json.dumps({'id': f'card{i}', 'name': f'Card {i}'}),
+                '2023-01-01T00:00:00'
+            ))
+        
+        conn.commit()
+        conn.close()
+        
+        # Test stats for LEA (has cards)
+        lea_stats = self.cache.get_set_completion_stats('lea')
+        assert lea_stats['set_code'] == 'lea'
+        assert lea_stats['cached_cards'] == 3
+        assert lea_stats['cache_available'] == True
+        
+        # Test stats for non-existent set
+        empty_stats = self.cache.get_set_completion_stats('nonexistent')
+        assert empty_stats['set_code'] == 'nonexistent'
+        assert empty_stats['cached_cards'] == 0
+        assert empty_stats['cache_available'] == False
