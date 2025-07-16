@@ -5,7 +5,7 @@
 {% block content %}
 <div class="progress-section">
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-6">
             <h2>
                 {% if set_info.icon_svg_uri %}
                 <img src="{{ set_info.icon_svg_uri }}" alt="{{ set_info.name }}" style="width: 32px; height: 32px; margin-right: 10px;">
@@ -14,17 +14,28 @@
                 <small class="text-muted">({{ set_info.code|upper }})</small>
             </h2>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="progress">
                 <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar">
                     <span id="progressText">0 / {{ cards|length }}</span>
                 </div>
             </div>
         </div>
+        <div class="col-md-3 text-end">
+            <a href="/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Sets
+            </a>
+            <a href="/set/{{ set_info.code }}/rapid" class="btn btn-info">
+                <i class="fas fa-bolt"></i> Rapid Mode
+            </a>
+            <button type="button" class="btn btn-success" onclick="saveCollection()">
+                <i class="fas fa-save"></i> Save Collection
+            </button>
+        </div>
     </div>
     
     <div class="row mt-2">
-        <div class="col-md-8">
+        <div class="col-md-6">
             <div class="btn-group" role="group">
                 <button type="button" class="btn btn-outline-secondary" onclick="setAllQuantities(0)">
                     <i class="fas fa-times"></i> Clear All
@@ -36,8 +47,9 @@
                     <i class="fas fa-plus"></i> Add 4 Each
                 </button>
             </div>
-            
-            <div class="btn-group ms-3" role="group">
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group me-3" role="group">
                 <button type="button" class="btn btn-outline-primary active" id="sortByNumber" onclick="sortCards('number')">
                     <i class="fas fa-sort-numeric-down"></i> Card #
                 </button>
@@ -46,7 +58,7 @@
                 </button>
             </div>
             
-            <div class="input-group ms-3" style="width: 250px; display: inline-flex;">
+            <div class="input-group" style="width: 250px; display: inline-flex;">
                 <span class="input-group-text">
                     <i class="fas fa-search"></i>
                 </span>
@@ -55,17 +67,6 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-        </div>
-        <div class="col-md-4 text-end">
-            <a href="/" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Sets
-            </a>
-            <a href="/set/{{ set_info.code }}/rapid" class="btn btn-info">
-                <i class="fas fa-bolt"></i> Rapid Mode
-            </a>
-            <button type="button" class="btn btn-success" onclick="saveCollection()">
-                <i class="fas fa-save"></i> Save Collection
-            </button>
         </div>
     </div>
 </div>

@@ -63,7 +63,7 @@ I have intentionally not added any statefulness to this application, to make it 
 3. **Select a set** from the main page to start adding cards
 
 4. **Choose your input method**:
-   - **Grid View**: See all cards at once with individual quantity inputs and sorting options
+   - **Grid View**: See all cards at once with individual quantity inputs, organized controls for better workflow
    - **Rapid Mode**: Lightning-fast keyboard-driven entry with streamlined progress tracking
 
 5. **Enter quantities** for each card you own:
@@ -261,12 +261,20 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Added smart progress tracking that updates based on visible filtered cards
     - Included comprehensive test coverage for the filtering functionality
 
+16. **"The controls at the top of the set view are now really cluttered. Let's try fixing that by moving the first set of buttons ('clear all', 'add 1 each', and 'add 4 each') to a second 'row' of buttons. We could also shrink the progress bar slightly."**
+    - Reorganized controls into a cleaner two-row layout to reduce visual clutter
+    - Moved quantity modification buttons to their own row for better organization
+    - Repositioned main action buttons (Back to Sets, Rapid Mode, Save Collection) to the top row
+    - Reduced progress bar width while maintaining functionality
+    - Improved overall visual hierarchy and user experience
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data
 - **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting
 - **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
 - **Real-time filtering**: Instant name-based card filtering with smart progress tracking
+- **Organized UI layout**: Clean two-row control structure reducing visual clutter
 - **CSV import/export** compatible with major collection trackers
 - **Real-time progress tracking** with improved UI layout and positioning
 - **Comprehensive error handling** and user feedback
