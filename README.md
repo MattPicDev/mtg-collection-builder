@@ -15,8 +15,9 @@ I have intentionally not added any statefulness to this application, to make it 
 ## Features
 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
-- **Rapid input mode**: Keyboard-driven interface for lightning-fast collection entry
-- **Flexible card sorting**: Toggle between alphabetical and card number sorting in grid view
+- **Rapid input mode**: Keyboard-driven interface with improved UI layout and progress tracking
+- **Flexible card sorting**: Toggle between alphabetical and card number sorting in both grid and rapid views
+- **Optimized performance**: Fast client-side sorting with DOM reordering for smooth user experience
 - **Scryfall API integration**: Automatically fetches card data and images
 - **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers
 - **Collection import**: Upload existing CSV collections to quickly populate your data
@@ -61,12 +62,12 @@ I have intentionally not added any statefulness to this application, to make it 
 3. **Select a set** from the main page to start adding cards
 
 4. **Choose your input method**:
-   - **Grid View**: See all cards at once with individual quantity inputs
-   - **Rapid Mode**: Lightning-fast keyboard-driven entry, one card at a time
+   - **Grid View**: See all cards at once with individual quantity inputs and sorting options
+   - **Rapid Mode**: Lightning-fast keyboard-driven entry with streamlined progress tracking
 
 5. **Enter quantities** for each card you own:
-   - **Grid View**: Use the number inputs and foil checkboxes
-   - **Rapid Mode**: Type numbers, press Space for foil, Enter to save and continue
+   - **Grid View**: Use the number inputs and foil checkboxes, toggle sorting between card number and alphabetical order
+   - **Rapid Mode**: Type numbers, press Space for foil, Enter to save and continue, use sorting buttons to change card order
 
 6. **Save your collection** when finished with a set
 
@@ -82,7 +83,7 @@ I have intentionally not added any statefulness to this application, to make it 
 ### Grid View
 - **Ctrl+S**: Save collection
 - **Enter**: Move to next card input field
-- **Sorting buttons**: Click to switch between card number and alphabetical order
+- **Sorting buttons**: Click to toggle between card number and alphabetical order (optimized for performance)
 - **Search boxes**: Filter sets and collection in real-time
 
 ### Rapid Mode
@@ -91,6 +92,7 @@ I have intentionally not added any statefulness to this application, to make it 
 - **Enter**: Save current card and move to next
 - **Arrow Keys**: Navigate between cards manually
 - **Escape**: Clear current input
+- **Sorting buttons**: Change card order without affecting current position
 - **Ctrl+S**: Save entire collection and finish
 
 ## CSV Import/Export Format
@@ -238,17 +240,30 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Added smooth visual transitions and DocumentFragment for efficient DOM manipulation
     - Achieved ~90% performance improvement for sorting operations
 
+13. **"Let's try adding the same sorting concept to the Rapid view. It should include the same buttons, and swapping should not change the active card. Instead, it should change how the rapid entry progresses, when the user hits an arrow key, hits enter, etc."**
+    - Extended sorting functionality to rapid input mode with consistent UI
+    - Implemented position tracking to maintain current card during sort changes
+    - Added seamless navigation that respects the current sort order
+    - Ensured sorting buttons work identically in both grid and rapid views
+
+14. **"The controls in the upper right of the rapid view are pretty cluttered now. Could we shrink or relocate the progress bar? Perhaps it could go below the card view, above the control documentation?"**
+    - Relocated progress bar from upper controls to below card display
+    - Improved visual hierarchy and reduced button crowding
+    - Enhanced user experience with cleaner, more organized layout
+    - Progress bar now matches card display width for visual consistency
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data
-- **Dual input modes**: Grid view and rapid keyboard-driven entry
-- **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization
+- **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting
+- **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
 - **CSV import/export** compatible with major collection trackers
-- **Real-time progress tracking** and collection management
+- **Real-time progress tracking** with improved UI layout and positioning
 - **Comprehensive error handling** and user feedback
 - **Professional development setup** with VS Code integration, unit testing, and proper licensing
-- **Performance optimizations** for smooth user experience
+- **Performance optimizations** for smooth user experience and fast DOM manipulation
 - **Cross-platform compatibility** with portable development configurations
+- **Intuitive UI design** with streamlined layouts and reduced visual clutter
 
 The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, and development workflow improvements.
 
