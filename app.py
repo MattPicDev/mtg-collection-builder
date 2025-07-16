@@ -220,7 +220,7 @@ class BulkDataCache:
         if collector_number:
             cursor.execute('''
                 SELECT data_json FROM cards_cache 
-                WHERE LOWER(name) = LOWER(?) AND LOWER(set_code) = LOWER(?) AND collector_number = ?
+                WHERE name = ? AND set_code = ? AND collector_number = ?
             ''', (name, set_code, collector_number))
             result = cursor.fetchone()
             if result:
@@ -230,7 +230,7 @@ class BulkDataCache:
         # Try without collector number
         cursor.execute('''
             SELECT data_json FROM cards_cache 
-            WHERE LOWER(name) = LOWER(?) AND LOWER(set_code) = LOWER(?)
+            WHERE name = ? AND set_code = ?
             ORDER BY collector_number
         ''', (name, set_code))
         result = cursor.fetchone()
