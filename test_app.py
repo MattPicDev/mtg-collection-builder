@@ -312,13 +312,34 @@ class TestFlaskRoutes(unittest.TestCase):
             }
         ]
         mock_get_set_cards.return_value = [
-            {'id': 'card1', 'name': 'Lightning Bolt', 'collector_number': '1'}
+            {
+                'id': 'card1', 
+                'name': 'Lightning Bolt', 
+                'collector_number': '1',
+                'rarity': 'common',
+                'mana_cost': '{R}',
+                'image_uris': {'small': 'http://example.com/card1.jpg'}
+            },
+            {
+                'id': 'card2', 
+                'name': 'Counterspell', 
+                'collector_number': '2',
+                'rarity': 'common',
+                'mana_cost': '{1}{U}',
+                'image_uris': {'small': 'http://example.com/card2.jpg'}
+            }
         ]
         
         response = self.app.get('/set/neo')
         
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Lightning Bolt', response.data)
+        self.assertIn(b'Counterspell', response.data)
+        # Check for sorting buttons
+        self.assertIn(b'sortByNumber', response.data)
+        self.assertIn(b'sortByName', response.data)
+        self.assertIn(b'Card #', response.data)
+        self.assertIn(b'Name', response.data)
     
     def test_set_view_not_found(self):
         """Test set view with invalid set code"""
