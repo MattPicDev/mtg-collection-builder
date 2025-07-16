@@ -4,7 +4,7 @@ A web-based tool for managing your Magic: The Gathering card collection. This to
 
 ## Notes about AI Generation
 
-I have been adding lots of cards from my old MTG collection, and I found popular websites very slow for this purpose.  As an experiment, I wanted to let Copilot create this app for me, using the language and libraries of its choice.  This project might have taken me an evening, but it probably would have taken me several evenings on my own.  Copilot did this in about a half hour of back-and-forth.
+I have been adding lots of cards from my old MTG collection, and I found popular websites very slow for this purpose.  As an experiment, I wanted to let Copilot create this app for me, using the language and libraries of its choice.  This project might have taken me an evening, but it probably would have taken me several evenings on my own.  Copilot and I made the first six or seven changes over about about a half hour of back-and-forth.
 
 This project was purely vibe-generated within Visual Studio Code, using the default Claude model option within Copilot.  No code changes were made by humans; this README section was the only modification.  In fact, it even told me how I could add this section without worrying about Copilot overwriting it.
 
