@@ -617,8 +617,26 @@ def import_collection_with_progress():
         # Generate unique import ID
         import_id = generate_import_id()
         
+        # Initialize progress tracking
+        update_import_progress(import_id, {
+            'status': 'starting',
+            'current': 0,
+            'total': 0,
+            'card_name': '',
+            'message': 'Reading file...'
+        })
+        
         # Read and decode the file content
         csv_content = file.read().decode('utf-8')
+        
+        # Update progress
+        update_import_progress(import_id, {
+            'status': 'processing',
+            'current': 0,
+            'total': 0,
+            'card_name': '',
+            'message': 'Starting import...'
+        })
         
         # Create progress callback
         def progress_callback(progress_data):
@@ -633,17 +651,22 @@ def import_collection_with_progress():
                     'status': 'complete',
                     'result': result,
                     'current': result.get('imported_count', 0),
-                    'total': result.get('imported_count', 0)
+                    'total': result.get('imported_count', 0),
+                    'card_name': '',
+                    'message': f'Import complete! {result.get("imported_count", 0)} cards imported.'
                 })
             except Exception as e:
                 update_import_progress(import_id, {
                     'status': 'error',
                     'error': str(e),
                     'current': 0,
-                    'total': 0
+                    'total': 0,
+                    'card_name': '',
+                    'message': f'Import failed: {str(e)}'
                 })
         
         thread = threading.Thread(target=run_import)
+        thread.daemon = True  # Make thread daemon so it dies when main thread dies
         thread.start()
         
         return jsonify({'import_id': import_id})
@@ -655,6 +678,16 @@ def import_collection_with_progress():
 def import_progress_stream(import_id):
     """Server-sent events endpoint for import progress"""
     def generate():
+        # Initialize progress tracking if not exists
+        if import_id not in import_progress:
+            update_import_progress(import_id, {
+                'status': 'starting',
+                'current': 0,
+                'total': 0,
+                'card_name': '',
+                'message': 'Initializing import...'
+            })
+        
         while True:
             progress_data = get_import_progress(import_id)
             
@@ -665,10 +698,17 @@ def import_progress_stream(import_id):
                 if progress_data.get('status') in ['complete', 'error']:
                     cleanup_import_progress(import_id)
                     break
+            else:
+                # If no progress data, send a heartbeat
+                yield f"data: {json.dumps({'status': 'waiting', 'message': 'Waiting for import to start...'})}\n\n"
             
             time.sleep(0.1)  # Poll every 100ms
     
-    return Response(generate(), mimetype='text/plain')
+    response = Response(generate(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection'] = 'keep-alive'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
 # ...existing routes...
 
