@@ -213,8 +213,8 @@ class BulkDataCache:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # Normalize set code
-        set_code = set_code.lower()
+        # Normalize set code using the same logic as the CollectionManager
+        set_code = self._normalize_set_identifier(set_code)
         
         # First try exact match with collector number
         if collector_number:
