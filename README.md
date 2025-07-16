@@ -30,13 +30,15 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Flexible card sorting**: Toggle between alphabetical and card number sorting in both grid and rapid views
 - **Real-time name filtering**: Instantly filter cards by name in grid view as you type
 - **Optimized performance**: Fast client-side sorting with DOM reordering for smooth user experience
-- **Scryfall API integration**: Automatically fetches card data and images
-- **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers with flexible format support
+- **Scryfall API integration**: Automatically fetches card data, images, and pricing information
+- **Real-time pricing data**: Displays current USD market prices for both regular and foil cards
+- **Collection valuation**: Automatically calculates estimated total value of your collection
+- **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers with flexible format support including pricing data
 - **Collection import**: Upload existing CSV collections to quickly populate your data with real-time progress tracking
 - **Responsive web interface**: Works on desktop and mobile devices
 - **Real-time progress tracking**: See your progress as you add cards and detailed import progress with card-by-card updates
 - **Search and filter**: Quickly find specific sets or cards
-- **Foil tracking**: Track both regular and foil versions of cards
+- **Foil tracking**: Track both regular and foil versions of cards with separate pricing
 - **Collection management**: Clear, replace, or merge collections
 - **Performance optimized**: Fast sorting and smooth UI transitions
 
@@ -74,23 +76,25 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 3. **Select a set** from the main page to start adding cards
 
 4. **Choose your input method**:
-   - **Grid View**: See all cards at once with individual quantity inputs, organized controls for better workflow
-   - **Rapid Mode**: Lightning-fast keyboard-driven entry with streamlined progress tracking
+   - **Grid View**: See all cards at once with individual quantity inputs and pricing information, organized controls for better workflow
+   - **Rapid Mode**: Lightning-fast keyboard-driven entry with streamlined progress tracking and pricing display
 
 5. **Enter quantities** for each card you own:
-   - **Grid View**: Use the number inputs and foil checkboxes, toggle sorting between card number and alphabetical order, use the name filter to quickly find specific cards
-   - **Rapid Mode**: Type numbers, press Space for foil, Enter to save and continue, use sorting buttons to change card order
+   - **Grid View**: Use the number inputs and foil checkboxes, see current market prices for each card, toggle sorting between card number and alphabetical order, use the name filter to quickly find specific cards
+   - **Rapid Mode**: Type numbers, press Space for foil, Enter to save and continue, view pricing information for each card, use sorting buttons to change card order
 
-6. **Save your collection** when finished with a set
+6. **View collection value**: Your collection's estimated total value is calculated automatically based on current market prices
 
 6. **Import existing collections** (optional):
    - Go to the Import page
    - Upload a CSV file in the supported format
    - Choose whether to replace or add to your existing collection
+   - Pricing information will be automatically updated from current market data
 
 7. **Export to CSV** from the collection page when ready:
    - Choose MTGGoldfish format for compatibility with MTGGoldfish and similar sites
    - Choose DeckBox format for compatibility with DeckBox and similar sites
+   - Both formats include current pricing information for your cards
 
 ## Keyboard Shortcuts
 
@@ -123,6 +127,7 @@ The tool supports exporting your collection in two popular formats:
 - Foil (Yes/No)
 - Condition
 - Language
+- Price USD (current market price)
 
 #### DeckBox Format
 - Count
@@ -132,10 +137,11 @@ The tool supports exporting your collection in two popular formats:
 - Card Number
 - Condition
 - Foil (foil/blank)
-- Signed, Artist Proof, Altered Art, Misprint, Promo, Textless, My Price (additional fields)
+- Signed, Artist Proof, Altered Art, Misprint, Promo, Textless, My Price (includes current market price)
 
 ### Import Features
-- **Smart card lookup**: Uses Scryfall API to verify card details
+- **Smart card lookup**: Uses Scryfall API to verify card details and fetch current pricing
+- **Automatic pricing updates**: Current market prices are automatically fetched and cached
 - **Multiple format support**: Handles both MTGGoldfish and DeckBox CSV formats automatically
 - **Flexible column mapping**: Supports different column names (Count/Quantity, Edition/Set, etc.)
 - **Set name normalization**: Converts full set names to standard 3-letter codes
@@ -183,14 +189,15 @@ The tool implements a sophisticated hybrid approach that dramatically improves i
 - **Performance alerts**: Visual feedback for cache performance levels in all views
 
 ### Technical Implementation
-- **SQLite database**: Local storage for 70,000+ MTG cards with optimized indexing
-- **Scryfall bulk API**: Initial data download with weekly auto-refresh
+- **SQLite database**: Local storage for 70,000+ MTG cards with optimized indexing and pricing data
+- **Scryfall bulk API**: Initial data download with weekly auto-refresh including pricing updates
 - **Hybrid lookup system**: Cache-first approach with automatic API fallback
 - **Set-specific optimization**: Targeted cache retrieval for individual sets
 - **Performance metrics**: Real-time tracking of cache hits, API calls, and response times
 - **Automatic cache population**: API responses cached for future use
 - **Background maintenance**: Daemon threads for cache refresh and cleanup
 - **UI integration**: Cache performance displayed in all views with visual indicators
+- **Pricing integration**: Real-time pricing data from Scryfall API with automatic updates
 
 ## API Integration
 
@@ -425,20 +432,31 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Validated fix with comprehensive testing showing 0 API calls and full cache utilization
     - Demonstrated that proper normalization is critical for cache performance
 
+25. **"Is it possible to add prices for these cards? I think there is some data out there with up-to-date Low, Average, and High prices - in this app, Average price would be fine."**
+    - Integrated comprehensive pricing system using Scryfall API pricing data
+    - Added price_usd and price_usd_foil columns to database with backward-compatible migration
+    - Enhanced all views (grid, rapid, collection) with real-time pricing display
+    - Implemented automatic collection valuation with estimated total value calculation
+    - Updated CSV export formats to include pricing information in both MTGGoldfish and DeckBox formats
+    - Added pricing data to bulk cache system for offline pricing capability
+    - Created comprehensive test coverage for pricing functionality
+    - Enhanced import system to automatically fetch current pricing for all cards
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
-- **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system
-- **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting
+- **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
+- **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting and pricing display
 - **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
 - **Real-time filtering**: Instant name-based card filtering with smart progress tracking
 - **Optimized UI layout**: Four-tier control structure with proper visual hierarchy and spacing
-- **CSV import/export** compatible with major collection trackers with dual format support (MTGGoldfish and DeckBox)
+- **CSV import/export** compatible with major collection trackers with dual format support (MTGGoldfish and DeckBox) including pricing data
 - **Real-time import progress tracking** with detailed progress bars and card-by-card status updates
-- **Hybrid bulk cache system**: 400x performance improvement with local SQLite database of 70,000+ cards
+- **Hybrid bulk cache system**: 400x performance improvement with local SQLite database of 70,000+ cards including pricing data
 - **Cache integration**: Comprehensive cache system integrated across all views (import, set browsing, rapid entry)
 - **Performance monitoring**: Real-time cache statistics and performance metrics in all interfaces
 - **Offline capability**: Full functionality without internet after initial cache setup
 - **Automatic cache management**: Weekly auto-refresh with manual refresh options and progress tracking
+- **Comprehensive pricing system**: Real-time USD market prices for both regular and foil cards with automatic collection valuation
 - **Comprehensive error handling** and user feedback with graceful API fallback
 - **Professional development setup** with VS Code integration, unit testing, and streamlined CI/CD
 - **Performance optimizations** for smooth user experience and fast DOM manipulation
@@ -447,7 +465,7 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
 - **Bidirectional format support** with round-trip compatibility for both import and export formats
 - **Advanced import features** with Server-Sent Events for real-time progress updates
 
-The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, and development workflow improvements.
+The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, development workflow improvements, and real-time pricing integration.
 
 ## Support
 
