@@ -8,7 +8,6 @@ import time
 import json
 import uuid
 import threading
-from queue import Queue
 import sqlite3
 from datetime import datetime, timedelta
 import hashlib
@@ -1057,74 +1056,6 @@ class CollectionManager:
 # Global collection manager
 collection_manager = CollectionManager()
 
-# Global dictionary to store import progress
-import_progress = {}
-
-# Global progress tracking
-progress_queues = {}
-progress_lock = threading.Lock()
-
-def get_progress_queue(session_id):
-    """Get or create a progress queue for a session"""
-    with progress_lock:
-        if session_id not in progress_queues:
-            progress_queues[session_id] = Queue()
-        return progress_queues[session_id]
-
-def cleanup_progress_queue(session_id):
-    """Remove a progress queue when done"""
-    with progress_lock:
-        if session_id in progress_queues:
-            del progress_queues[session_id]
-
-class ImportProgressTracker:
-    """Tracks progress for CSV imports"""
-    
-    def __init__(self, import_id: str):
-        self.import_id = import_id
-        self.total_rows = 0
-        self.current_row = 0
-        self.imported_count = 0
-        self.errors = []
-        self.current_card = ""
-        self.status = "starting"
-        self.completed = False
-        
-    def update_progress(self, current_row: int, current_card: str, imported_count: int, errors: List[str]):
-        """Update progress information"""
-        self.current_row = current_row
-        self.current_card = current_card
-        self.imported_count = imported_count
-        self.errors = errors
-        self.status = "processing"
-        
-    def set_total_rows(self, total_rows: int):
-        """Set the total number of rows to process"""
-        self.total_rows = total_rows
-        
-    def complete(self, success: bool):
-        """Mark import as completed"""
-        self.completed = True
-        self.status = "completed" if success else "failed"
-        
-    def get_progress_data(self) -> Dict:
-        """Get current progress data"""
-        percentage = 0
-        if self.total_rows > 0:
-            percentage = min(100, (self.current_row / self.total_rows) * 100)
-            
-        return {
-            'import_id': self.import_id,
-            'total_rows': self.total_rows,
-            'current_row': self.current_row,
-            'imported_count': self.imported_count,
-            'errors': self.errors,
-            'current_card': self.current_card,
-            'status': self.status,
-            'percentage': percentage,
-            'completed': self.completed
-        }
-
 @app.route('/')
 def index():
     """Main page - show set selection"""
@@ -1478,8 +1409,6 @@ def cache_refresh_progress(refresh_id):
     response.headers['Connection'] = 'keep-alive'
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
-
-# ...existing routes...
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)
