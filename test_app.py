@@ -5,7 +5,48 @@ import io
 import csv
 import requests
 from flask import Flask
-from app import app, ScryfallAPI, CollectionManager, collection_manager
+from app import app, ScryfallAPI, CollectionManager, collection_manager, sanitize_card_name
+
+
+class TestCardNameSanitization(unittest.TestCase):
+    """Test cases for card name sanitization functionality"""
+    
+    def test_sanitize_card_name_basic(self):
+        """Test basic card name sanitization"""
+        # Test removing single parentheses
+        self.assertEqual(sanitize_card_name("Mountain (59)"), "Mountain")
+        self.assertEqual(sanitize_card_name("Zendikar (FDN) (87)"), "Zendikar")
+        
+        # Test unchanged names
+        self.assertEqual(sanitize_card_name("Lightning Bolt"), "Lightning Bolt")
+        self.assertEqual(sanitize_card_name("Serra Angel"), "Serra Angel")
+        
+    def test_sanitize_card_name_edge_cases(self):
+        """Test edge cases for card name sanitization"""
+        # Test empty and whitespace strings
+        self.assertEqual(sanitize_card_name(""), "")
+        self.assertEqual(sanitize_card_name("   "), "")
+        
+        # Test whitespace handling
+        self.assertEqual(sanitize_card_name("  Mountain (59)  "), "Mountain")
+        self.assertEqual(sanitize_card_name("Lightning Bolt   (123)"), "Lightning Bolt")
+        
+        # Test multiple parentheses
+        self.assertEqual(sanitize_card_name("Serra Angel (M11) (123) (foil)"), "Serra Angel")
+        
+    def test_sanitize_card_name_deckbox_format(self):
+        """Test sanitization with realistic DeckBox export examples"""
+        test_cases = [
+            ("Black Lotus (LEA) (232)", "Black Lotus"),
+            ("Counterspell (7th Edition) (60)", "Counterspell"),
+            ("Forest (Unhinged) (140)", "Forest"),
+            ("Island (Ice Age) (345)", "Island"),
+            ("Fire // Ice (Apocalypse) (128)", "Fire // Ice")
+        ]
+        
+        for original, expected in test_cases:
+            with self.subTest(original=original):
+                self.assertEqual(sanitize_card_name(original), expected)
 
 
 class TestScryfallAPI(unittest.TestCase):

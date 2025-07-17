@@ -12,6 +12,7 @@ from queue import Queue
 import sqlite3
 from datetime import datetime, timedelta
 import hashlib
+import re
 
 app = Flask(__name__)
 
@@ -21,6 +22,33 @@ import_progress = {}
 # Cache configuration
 CACHE_DB_PATH = 'mtg_cache.db'
 CACHE_EXPIRY_DAYS = 7  # Cache bulk data for 7 days
+
+def sanitize_card_name(card_name: str) -> str:
+    """
+    Sanitize card name by removing parenthetical information commonly added by collection exporters.
+    
+    Examples:
+    - "Mountain (59)" -> "Mountain"
+    - "Zendikar (FDN) (87)" -> "Zendikar"
+    - "Lightning Bolt" -> "Lightning Bolt" (unchanged)
+    
+    Args:
+        card_name: The card name to sanitize
+        
+    Returns:
+        The sanitized card name with parenthetical information removed
+    """
+    if not card_name:
+        return card_name
+    
+    # Remove all parenthetical information (including nested parentheses)
+    # This regex removes any text within parentheses along with the parentheses themselves
+    sanitized = re.sub(r'\s*\([^)]*\)\s*', '', card_name)
+    
+    # Clean up any extra whitespace
+    sanitized = sanitized.strip()
+    
+    return sanitized
 
 class BulkDataCache:
     """Manages local caching of Scryfall bulk data for faster imports"""
@@ -768,17 +796,21 @@ class CollectionManager:
             
             for row_num, row in enumerate(rows, start=2):  # Start at 2 because of header
                 try:
+                    # Handle different column name formats
+                    name = row.get('Name', '').strip()
+                    
+                    # Sanitize card name by removing parenthetical information
+                    # (e.g., "Mountain (59)" -> "Mountain", "Zendikar (FDN) (87)" -> "Zendikar")
+                    sanitized_name = sanitize_card_name(name)
+                    
                     # Update progress if callback provided
                     if progress_callback:
                         progress_callback({
                             'current': row_num - 1,
                             'total': total_rows,
-                            'card_name': row.get('Name', '').strip(),
+                            'card_name': sanitized_name,
                             'status': 'processing'
                         })
-                    
-                    # Handle different column name formats
-                    name = row.get('Name', '').strip()
                     
                     # Handle different quantity column names
                     quantity = int(row.get('Quantity', row.get('Count', 0)))
@@ -802,11 +834,11 @@ class CollectionManager:
                     if not language:
                         language = 'English'
                     
-                    if not name or not set_code or quantity <= 0:
+                    if not sanitized_name or not set_code or quantity <= 0:
                         continue  # Skip invalid rows
                     
                     # Try to find the card using hybrid approach (cache first, then API)
-                    card_data = self._find_card_by_details_hybrid(name, set_code, collector_number)
+                    card_data = self._find_card_by_details_hybrid(sanitized_name, set_code, collector_number)
                     
                     if card_data:
                         if card_data.get('_source') == 'cache':
@@ -820,7 +852,7 @@ class CollectionManager:
                         key = f"{card_id}_{foil}"
                         
                         self.collection[key] = {
-                            'name': name,
+                            'name': sanitized_name,
                             'set': card_data.get('set', set_code).upper(),
                             'set_name': card_data.get('set_name', ''),
                             'collector_number': collector_number,
@@ -841,11 +873,11 @@ class CollectionManager:
                             progress_callback({
                                 'current': row_num - 1,
                                 'total': total_rows,
-                                'card_name': name,
+                                'card_name': sanitized_name,
                                 'status': 'imported'
                             })
                     else:
-                        errors.append(f"Row {row_num}: Could not find card '{name}' in set '{set_code}'")
+                        errors.append(f"Row {row_num}: Could not find card '{sanitized_name}' in set '{set_code}'")
                         
                         # Update progress with error
                         if progress_callback:

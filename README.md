@@ -164,6 +164,7 @@ The tool supports exporting your collection in two popular formats:
 - **Multiple format support**: Handles both MTGGoldfish and DeckBox CSV formats automatically
 - **Flexible column mapping**: Supports different column names (Count/Quantity, Edition/Set, etc.)
 - **Set name normalization**: Converts full set names to standard 3-letter codes
+- **Card name sanitization**: Automatically removes parenthetical information from DeckBox exports (e.g., "Mountain (59)" becomes "Mountain")
 - **Error reporting**: Shows which cards couldn't be imported
 - **Flexible options**: Choose to replace or merge with existing collection
 - **Progress tracking**: Real-time feedback during import process
@@ -500,6 +501,15 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Added proper date parsing and validation with graceful error handling
     - Maintained sorting and performance optimizations while adding date filtering
     - Ensured consistent behavior between API and cache data sources
+
+30. **"In the Deckbox export format, sometimes the card name will include one or more sets of parentheses at the end with clarifying information. Examples are 'Mountain (59)' or 'Zendikar (FDN) (87)'. These are not part of the actual card name, and they're redundant with other columns. When importing, ignore/remove any part of the name that is between parentheses, including the parentheses themselves and surrounding whitespace. For example, an imported card name of 'Zendikar (FDN) (87)' should be sanitized to 'Zendikar'."**
+    - Added sanitize_card_name() function to remove parenthetical information from card names
+    - Implemented regex-based sanitization to handle multiple parentheses and whitespace
+    - Integrated sanitization into CSV import process for cleaner card lookups
+    - Enhanced import_from_csv() to use sanitized names for card database lookups
+    - Added comprehensive test coverage for various parenthetical formats
+    - Improved import accuracy by removing redundant set codes and collector numbers from names
+    - Maintained backward compatibility with existing import functionality
 
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
