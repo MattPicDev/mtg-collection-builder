@@ -390,6 +390,8 @@ class BulkDataCache:
         conn.close()
         
         sets = []
+        today = datetime.now().date()
+        
         for row in results:
             set_code, set_name, sample_card_json = row
             try:
@@ -407,6 +409,15 @@ class BulkDataCache:
                     'uri': f"https://api.scryfall.com/sets/{set_code}",
                     '_source': 'cache'
                 }
+                
+                # Filter out future sets
+                try:
+                    release_date = datetime.strptime(set_info['released_at'], '%Y-%m-%d').date()
+                    if release_date > today:
+                        continue  # Skip future sets
+                except ValueError:
+                    # If date parsing fails, assume it's not a future set
+                    pass
                 
                 # Get card count for this set
                 conn = sqlite3.connect(self.db_path)
@@ -533,13 +544,23 @@ class ScryfallAPI:
             ]
             
             sets = []
+            today = datetime.now().date()
+            
             for s in data['data']:
                 # Filter by set type and ensure it has cards
                 if (s['set_type'] in relevant_set_types and 
                     s.get('card_count', 0) > 0 and
                     s['set_type'] not in ['token', 'memorabilia', 'art_series']):
-                    s['_source'] = 'api'
-                    sets.append(s)
+                    
+                    # Filter out future sets
+                    try:
+                        release_date = datetime.strptime(s['released_at'], '%Y-%m-%d').date()
+                        if release_date <= today:
+                            s['_source'] = 'api'
+                            sets.append(s)
+                    except ValueError:
+                        # If date parsing fails, skip this set
+                        continue
             
             # Sort by release date (newest first), then alphabetically by name
             sets.sort(key=lambda x: (-time.mktime(time.strptime(x['released_at'], '%Y-%m-%d')), x['name']))

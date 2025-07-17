@@ -493,6 +493,14 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Maintained backward compatibility with existing sorting behavior
     - Added comprehensive test coverage for new sorting algorithms
 
+29. **"On the Sets page, don't include any sets with a release date in the future."**
+    - Added future set filtering to both API and cache set retrieval methods
+    - Enhanced get_sets() to filter out any sets with release dates after today's date
+    - Updated get_sets_from_cache() with the same future date filtering logic
+    - Added proper date parsing and validation with graceful error handling
+    - Maintained sorting and performance optimizations while adding date filtering
+    - Ensured consistent behavior between API and cache data sources
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
