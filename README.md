@@ -41,6 +41,7 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Foil tracking**: Track both regular and foil versions of cards with separate pricing
 - **Collection management**: Clear, replace, or merge collections
 - **Performance optimized**: Fast sorting and smooth UI transitions
+- **Sortable collection table**: Click column headers to sort collection by any criteria with visual feedback
 
 ## Installation
 
@@ -95,6 +96,13 @@ I have been extremely impressed with Copilot throughout this process.  It will m
    - Choose MTGGoldfish format for compatibility with MTGGoldfish and similar sites
    - Choose DeckBox format for compatibility with DeckBox and similar sites
    - Both formats include current pricing information for your cards
+   - Click any column header in the collection table to sort by that criteria
+
+8. **Collection Management**: 
+   - Sort your collection by clicking any column header (name, set, quantity, price, etc.)
+   - Price and total value columns default to descending order (highest first)
+   - All other columns default to ascending order
+   - Visual feedback shows current sort direction with up/down arrows
 
 ## Keyboard Shortcuts
 
@@ -113,6 +121,13 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Escape**: Clear current input
 - **Sorting buttons**: Change card order without affecting current position
 - **Ctrl+S**: Save entire collection and finish
+
+### Collection View
+- **Click column headers**: Sort collection by any column (name, set, quantity, price, etc.)
+- **Search box**: Filter collection in real-time
+- **Price columns**: Default to descending sort (highest values first)
+- **Other columns**: Default to ascending sort
+- **Sort indicators**: Visual arrows show current sort direction
 
 ## CSV Import/Export Format
 
@@ -442,6 +457,27 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Created comprehensive test coverage for pricing functionality
     - Enhanced import system to automatically fetch current pricing for all cards
 
+26. **"Something is really broken. The page now shows no sets available, and GitHub Actions is reporting test failures. Please investigate."**
+    - Diagnosed Scryfall API maintenance outage causing no sets to display
+    - Fixed critical API caching issue where get_sets() was not using the hybrid cache approach
+    - Added get_sets_from_cache() method to BulkDataCache for offline set browsing
+    - Modified ScryfallAPI.get_sets() to prioritize cache over API calls
+    - Implemented graceful fallback to cache when API is unavailable
+    - Updated test suite to properly mock both cache and API behavior
+    - Fixed failing tests that expected API-only behavior
+    - Restored full functionality during API outages with cache-first approach
+
+27. **"Let's add a feature to the collection page. Clicking on the column headers of the table should sort the table by that criteria. Each should sort in ascending order, except price, which should always be descending order."**
+    - Added sortable column headers to collection table with clickable functionality
+    - Implemented client-side sorting for all columns (name, set, collector number, quantity, foil, rarity, condition, price, total value)
+    - Added smart sorting logic: price and total value default to descending, others to ascending
+    - Included visual feedback with sort icons (fa-sort, fa-sort-up, fa-sort-down)
+    - Added hover effects and active column highlighting in blue
+    - Implemented proper data type handling (strings, numbers, mixed alphanumeric)
+    - Added data attributes to table rows for efficient sorting
+    - Created comprehensive sorting functionality with toggle behavior
+    - Updated tests to handle new cache-first API behavior
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
@@ -457,6 +493,8 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
 - **Offline capability**: Full functionality without internet after initial cache setup
 - **Automatic cache management**: Weekly auto-refresh with manual refresh options and progress tracking
 - **Comprehensive pricing system**: Real-time USD market prices for both regular and foil cards with automatic collection valuation
+- **Sortable collection interface**: Click any column header to sort collection with visual feedback and smart defaults
+- **Robust offline capability**: Full functionality including set browsing when API is unavailable via cache-first approach
 - **Comprehensive error handling** and user feedback with graceful API fallback
 - **Professional development setup** with VS Code integration, unit testing, and streamlined CI/CD
 - **Performance optimizations** for smooth user experience and fast DOM manipulation
@@ -465,7 +503,7 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
 - **Bidirectional format support** with round-trip compatibility for both import and export formats
 - **Advanced import features** with Server-Sent Events for real-time progress updates
 
-The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, development workflow improvements, and real-time pricing integration.
+The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, development workflow improvements, real-time pricing integration, and robust offline functionality with intelligent caching systems.
 
 ## Support
 
