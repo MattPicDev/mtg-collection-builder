@@ -100,9 +100,12 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 
 8. **Collection Management**: 
    - Sort your collection by clicking any column header (name, set, quantity, price, etc.)
+   - Collection loads with cards sorted by price (highest first) by default
    - Price and total value columns default to descending order (highest first)
    - All other columns default to ascending order
+   - Set and Number columns sort together as combined criteria (by set first, then number)
    - Visual feedback shows current sort direction with up/down arrows
+   - Sets page displays newest releases first, with alphabetical ordering for same dates
 
 ## Keyboard Shortcuts
 
@@ -126,6 +129,7 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Click column headers**: Sort collection by any column (name, set, quantity, price, etc.)
 - **Search box**: Filter collection in real-time
 - **Price columns**: Default to descending sort (highest values first)
+- **Set + Number columns**: Sort together as combined criteria
 - **Other columns**: Default to ascending sort
 - **Sort indicators**: Visual arrows show current sort direction
 
@@ -478,6 +482,17 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Created comprehensive sorting functionality with toggle behavior
     - Updated tests to handle new cache-first API behavior
 
+28. **"Let's make a couple other changes to sorting. First, the list of sets on the Sets page should be in date order, such that the newest sets are listed first. When two or more sets have the same date, they should then be sorted alphabetically. Second, on the Collection page, the default sort should be by price, descending, so the most expensive card is first. Third, on the collection page, the 'Set' and 'Number' columns should sort together."**
+    - Enhanced sets page with date-based sorting (newest first) and alphabetical secondary sort
+    - Modified ScryfallAPI.get_sets() to sort by release date descending, then name ascending
+    - Updated both API and cache sorting logic for consistency
+    - Implemented default price descending sort on collection page load
+    - Added combined Set+Number column sorting as unified criteria
+    - Enhanced sorting logic to handle set first, then collector number (numeric then alphanumeric)
+    - Updated JavaScript sortTable() function with sophisticated multi-criteria sorting
+    - Maintained backward compatibility with existing sorting behavior
+    - Added comprehensive test coverage for new sorting algorithms
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
@@ -493,7 +508,8 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
 - **Offline capability**: Full functionality without internet after initial cache setup
 - **Automatic cache management**: Weekly auto-refresh with manual refresh options and progress tracking
 - **Comprehensive pricing system**: Real-time USD market prices for both regular and foil cards with automatic collection valuation
-- **Sortable collection interface**: Click any column header to sort collection with visual feedback and smart defaults
+- **Advanced sortable interface**: Click any column header to sort collection with visual feedback, smart defaults, and multi-criteria sorting (Set+Number combined)
+- **Intelligent sorting defaults**: Sets page shows newest releases first, collection defaults to highest-value cards, with contextual sort priorities
 - **Robust offline capability**: Full functionality including set browsing when API is unavailable via cache-first approach
 - **Comprehensive error handling** and user feedback with graceful API fallback
 - **Professional development setup** with VS Code integration, unit testing, and streamlined CI/CD

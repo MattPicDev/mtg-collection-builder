@@ -248,6 +248,36 @@ function sortTable(column) {
     
     // Sort rows
     rows.sort((a, b) => {
+        // Handle set+number sorting together
+        if (column === 'set' || column === 'collector_number') {
+            const aSet = a.getAttribute('data-set').toLowerCase();
+            const bSet = b.getAttribute('data-set').toLowerCase();
+            const aNum = a.getAttribute('data-collector-number');
+            const bNum = b.getAttribute('data-collector-number');
+            
+            // First compare by set
+            if (aSet !== bSet) {
+                return direction === 'asc' ? 
+                    (aSet < bSet ? -1 : 1) : 
+                    (aSet > bSet ? -1 : 1);
+            }
+            
+            // If sets are same, compare by collector number
+            const aNumInt = parseInt(aNum) || 0;
+            const bNumInt = parseInt(bNum) || 0;
+            if (aNumInt !== bNumInt) {
+                return direction === 'asc' ? 
+                    (aNumInt - bNumInt) : 
+                    (bNumInt - aNumInt);
+            }
+            
+            // If numbers are same, compare as strings
+            return direction === 'asc' ? 
+                aNum.localeCompare(bNum) : 
+                bNum.localeCompare(aNum);
+        }
+        
+        // Handle other columns normally
         let aVal = a.getAttribute(`data-${column.replace('_', '-')}`);
         let bVal = b.getAttribute(`data-${column.replace('_', '-')}`);
         
@@ -255,18 +285,6 @@ function sortTable(column) {
         if (column === 'quantity' || column === 'price' || column === 'total_value') {
             aVal = parseFloat(aVal) || 0;
             bVal = parseFloat(bVal) || 0;
-        } else if (column === 'collector_number') {
-            // Handle collector numbers that might have letters
-            const aNum = parseInt(aVal) || 0;
-            const bNum = parseInt(bVal) || 0;
-            if (aNum !== bNum) {
-                aVal = aNum;
-                bVal = bNum;
-            } else {
-                // If numbers are same, compare as strings
-                aVal = aVal.toString();
-                bVal = bVal.toString();
-            }
         } else if (column === 'foil') {
             aVal = parseInt(aVal);
             bVal = parseInt(bVal);
@@ -308,6 +326,9 @@ document.addEventListener('DOMContentLoaded', function() {
             sortTable(column);
         });
     });
+    
+    // Initialize table with default sort (price descending)
+    sortTable('price');
 });
 </script>
 

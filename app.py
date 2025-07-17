@@ -421,6 +421,9 @@ class BulkDataCache:
                 print(f"Error processing set {set_code}: {e}")
                 continue
         
+        # Sort by release date (newest first), then alphabetically by name
+        sets.sort(key=lambda x: (-time.mktime(time.strptime(x['released_at'], '%Y-%m-%d')), x['name']))
+        
         return sets
     
     def cache_cards_batch(self, cards: List[Dict]) -> int:
@@ -538,8 +541,8 @@ class ScryfallAPI:
                     s['_source'] = 'api'
                     sets.append(s)
             
-            # Sort by release date (newest first)
-            sets.sort(key=lambda x: x['released_at'], reverse=True)
+            # Sort by release date (newest first), then alphabetically by name
+            sets.sort(key=lambda x: (-time.mktime(time.strptime(x['released_at'], '%Y-%m-%d')), x['name']))
             
             print(f"Retrieved {len(sets)} sets from API")
             return sets
