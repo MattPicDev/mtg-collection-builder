@@ -87,21 +87,50 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Card</th>
-                        <th>Set</th>
-                        <th>Number</th>
-                        <th>Quantity</th>
-                        <th>Foil</th>
-                        <th>Rarity</th>
-                        <th>Condition</th>
-                        <th>Price</th>
-                        <th>Total Value</th>
+                        <th class="sortable" data-column="name" style="cursor: pointer;">
+                            Card <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="set" style="cursor: pointer;">
+                            Set <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="collector_number" style="cursor: pointer;">
+                            Number <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="quantity" style="cursor: pointer;">
+                            Quantity <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="foil" style="cursor: pointer;">
+                            Foil <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="rarity" style="cursor: pointer;">
+                            Rarity <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="condition" style="cursor: pointer;">
+                            Condition <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="price" style="cursor: pointer;">
+                            Price <i class="fas fa-sort sort-icon"></i>
+                        </th>
+                        <th class="sortable" data-column="total_value" style="cursor: pointer;">
+                            Total Value <i class="fas fa-sort sort-icon"></i>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="collectionTableBody">
                     {% for key, card in collection.items() %}
                     {% if card.quantity > 0 %}
-                    <tr class="collection-row" data-card-name="{{ card.name|lower }}" data-set-name="{{ card.set_name|lower }}">
+                    <tr class="collection-row" 
+                        data-card-name="{{ card.name|lower }}" 
+                        data-set-name="{{ card.set_name|lower }}"
+                        data-name="{{ card.name }}"
+                        data-set="{{ card.set }}"
+                        data-collector-number="{{ card.collector_number }}"
+                        data-quantity="{{ card.quantity }}"
+                        data-foil="{{ '1' if card.foil else '0' }}"
+                        data-rarity="{{ card.rarity }}"
+                        data-condition="{{ card.condition }}"
+                        data-price="{{ card.price_usd or '0' }}"
+                        data-total-value="{{ (card.price_usd|float * card.quantity) if card.price_usd else 0 }}">
                         <td>
                             <div class="d-flex align-items-center">
                                 {% if card.image_url %}
@@ -177,6 +206,9 @@
 
 {% block scripts %}
 <script>
+// Sorting state
+let currentSort = { column: null, direction: 'asc' };
+
 function filterCollection() {
     const search = document.getElementById('collectionSearch').value.toLowerCase();
     const rows = document.querySelectorAll('.collection-row');
@@ -192,5 +224,111 @@ function filterCollection() {
         }
     });
 }
+
+function sortTable(column) {
+    const tbody = document.getElementById('collectionTableBody');
+    const rows = Array.from(tbody.querySelectorAll('.collection-row'));
+    
+    // Determine sort direction
+    let direction = 'asc';
+    if (currentSort.column === column) {
+        direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        // Price and total_value columns default to descending
+        if (column === 'price' || column === 'total_value') {
+            direction = 'desc';
+        }
+    }
+    
+    // Update sort state
+    currentSort = { column, direction };
+    
+    // Update sort icons
+    updateSortIcons(column, direction);
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aVal = a.getAttribute(`data-${column.replace('_', '-')}`);
+        let bVal = b.getAttribute(`data-${column.replace('_', '-')}`);
+        
+        // Handle different data types
+        if (column === 'quantity' || column === 'price' || column === 'total_value') {
+            aVal = parseFloat(aVal) || 0;
+            bVal = parseFloat(bVal) || 0;
+        } else if (column === 'collector_number') {
+            // Handle collector numbers that might have letters
+            const aNum = parseInt(aVal) || 0;
+            const bNum = parseInt(bVal) || 0;
+            if (aNum !== bNum) {
+                aVal = aNum;
+                bVal = bNum;
+            } else {
+                // If numbers are same, compare as strings
+                aVal = aVal.toString();
+                bVal = bVal.toString();
+            }
+        } else if (column === 'foil') {
+            aVal = parseInt(aVal);
+            bVal = parseInt(bVal);
+        } else {
+            // String comparison (case-insensitive)
+            aVal = aVal.toLowerCase();
+            bVal = bVal.toLowerCase();
+        }
+        
+        // Compare values
+        if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+    
+    // Clear tbody and re-append sorted rows
+    tbody.innerHTML = '';
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function updateSortIcons(activeColumn, direction) {
+    // Reset all icons
+    document.querySelectorAll('.sort-icon').forEach(icon => {
+        icon.className = 'fas fa-sort sort-icon';
+    });
+    
+    // Update active column icon
+    const activeHeader = document.querySelector(`[data-column="${activeColumn}"] .sort-icon`);
+    if (activeHeader) {
+        activeHeader.className = direction === 'asc' ? 'fas fa-sort-up sort-icon' : 'fas fa-sort-down sort-icon';
+    }
+}
+
+// Add click listeners to sortable headers
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const column = this.getAttribute('data-column');
+            sortTable(column);
+        });
+    });
+});
 </script>
+
+<style>
+.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sortable .sort-icon {
+    margin-left: 5px;
+    opacity: 0.5;
+}
+
+.sortable:hover .sort-icon {
+    opacity: 1;
+}
+
+.sortable[data-column] .sort-icon.fa-sort-up,
+.sortable[data-column] .sort-icon.fa-sort-down {
+    opacity: 1;
+    color: #0d6efd;
+}
+</style>
 {% endblock %}

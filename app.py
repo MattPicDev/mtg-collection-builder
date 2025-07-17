@@ -372,6 +372,57 @@ class BulkDataCache:
         
         return [json.loads(result[0]) for result in results]
     
+    def get_sets_from_cache(self) -> List[Dict]:
+        """Get all available sets from cache"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Get distinct sets from cache with their basic information
+        cursor.execute('''
+            SELECT DISTINCT set_code, set_name, MIN(data_json) as sample_card
+            FROM cards_cache 
+            WHERE set_code IS NOT NULL AND set_code != ''
+            GROUP BY set_code, set_name
+            ORDER BY set_code
+        ''')
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        sets = []
+        for row in results:
+            set_code, set_name, sample_card_json = row
+            try:
+                sample_card = json.loads(sample_card_json)
+                
+                # Create set info from the sample card
+                set_info = {
+                    'code': set_code,
+                    'name': set_name or sample_card.get('set_name', set_code.upper()),
+                    'set_type': sample_card.get('set_type', 'unknown'),
+                    'released_at': sample_card.get('released_at', '1993-01-01'),
+                    'card_count': 0,  # Will be calculated
+                    'icon_svg_uri': sample_card.get('set_uri', ''),
+                    'search_uri': f"https://api.scryfall.com/cards/search?q=set:{set_code}",
+                    'uri': f"https://api.scryfall.com/sets/{set_code}",
+                    '_source': 'cache'
+                }
+                
+                # Get card count for this set
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*) FROM cards_cache WHERE set_code = ?', (set_code,))
+                card_count = cursor.fetchone()[0]
+                set_info['card_count'] = card_count
+                conn.close()
+                
+                sets.append(set_info)
+            except Exception as e:
+                print(f"Error processing set {set_code}: {e}")
+                continue
+        
+        return sets
+    
     def cache_cards_batch(self, cards: List[Dict]) -> int:
         """Cache a batch of cards from API responses"""
         if not cards:
@@ -454,7 +505,15 @@ class ScryfallAPI:
     
     @staticmethod
     def get_sets() -> List[Dict]:
-        """Fetch all MTG sets from Scryfall API"""
+        """Fetch all MTG sets using hybrid cache approach"""
+        # First try to get sets from cache
+        if bulk_cache.is_cache_valid():
+            cached_sets = bulk_cache.get_sets_from_cache()
+            if cached_sets:
+                print(f"Retrieved {len(cached_sets)} sets from cache")
+                return cached_sets
+        
+        # Fallback to API if cache miss or invalid
         try:
             response = requests.get(f"{ScryfallAPI.BASE_URL}/sets")
             response.raise_for_status()
@@ -476,14 +535,21 @@ class ScryfallAPI:
                 if (s['set_type'] in relevant_set_types and 
                     s.get('card_count', 0) > 0 and
                     s['set_type'] not in ['token', 'memorabilia', 'art_series']):
+                    s['_source'] = 'api'
                     sets.append(s)
             
             # Sort by release date (newest first)
             sets.sort(key=lambda x: x['released_at'], reverse=True)
             
+            print(f"Retrieved {len(sets)} sets from API")
             return sets
         except requests.RequestException as e:
             print(f"Error fetching sets: {e}")
+            # If API fails, try cache anyway (even if expired)
+            cached_sets = bulk_cache.get_sets_from_cache()
+            if cached_sets:
+                print(f"Fallback: Retrieved {len(cached_sets)} sets from cache")
+                return cached_sets
             return []
     
     @staticmethod

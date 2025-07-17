@@ -11,9 +11,14 @@ from app import app, ScryfallAPI, CollectionManager, collection_manager
 class TestScryfallAPI(unittest.TestCase):
     """Test cases for ScryfallAPI class"""
     
+    @patch('app.bulk_cache')
     @patch('app.requests.get')
-    def test_get_sets_success(self, mock_get):
+    def test_get_sets_success(self, mock_get, mock_cache):
         """Test successful retrieval and filtering of MTG sets"""
+        # Mock cache returning no sets (so API is used)
+        mock_cache.is_cache_valid.return_value = False
+        mock_cache.get_sets_from_cache.return_value = []
+        
         # Mock API response
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
@@ -54,10 +59,15 @@ class TestScryfallAPI(unittest.TestCase):
         # Verify token set was filtered out
         set_codes = [s['code'] for s in sets]
         self.assertNotIn('tneo', set_codes)
-    
+
+    @patch('app.bulk_cache')
     @patch('app.requests.get')
-    def test_get_sets_api_error(self, mock_get):
+    def test_get_sets_api_error(self, mock_get, mock_cache):
         """Test handling of API errors when fetching sets"""
+        # Mock cache returning no sets (so API is used)
+        mock_cache.is_cache_valid.return_value = False
+        mock_cache.get_sets_from_cache.return_value = []
+        
         mock_get.side_effect = requests.RequestException("API Error")
         
         sets = ScryfallAPI.get_sets()
