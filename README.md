@@ -121,7 +121,8 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Type numbers**: Set quantity (automatically focused)
 - **Space**: Toggle foil status
 - **Enter**: Save current card and move to next
-- **Arrow Keys**: Navigate between cards manually
+- **Left/Right Arrow Keys**: Navigate between cards manually
+- **Up/Down Arrow Keys**: Increment/decrement quantity by 1
 - **Escape**: Clear current input
 - **Sorting buttons**: Change card order without affecting current position
 - **Ctrl+S**: Save entire collection and finish
@@ -521,6 +522,15 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Added automatic foil checkbox pre-selection based on existing collection data
     - Improved user experience by preventing accidental quantity overwrites
     - Enhanced transparency in quantity management workflow
+
+32. **"Let's add new keyboard shortcuts to the Rapid view. The up and down arrow keys should increment or decrement the quantity shown by one. The minimum quantity should be zero."**
+    - Added ArrowUp and ArrowDown keyboard shortcuts to rapid input mode
+    - Implemented quantity increment/decrement with 1-unit steps
+    - Added minimum quantity constraint (cannot go below 0)
+    - Enhanced keyboard handler with smart quantity management (parseInt with fallback)
+    - Updated in-app documentation to clarify Left/Right vs Up/Down arrow key functions
+    - Updated README keyboard shortcuts section with detailed arrow key functionality
+    - Improved rapid entry workflow with more intuitive quantity adjustment controls
 
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI

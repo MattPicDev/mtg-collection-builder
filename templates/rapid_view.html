@@ -82,7 +82,8 @@
                     <li><strong>Type a number</strong> - Set quantity (automatically focused)</li>
                     <li><strong>Space</strong> - Toggle foil status</li>
                     <li><strong>Enter</strong> - Save and move to next card</li>
-                    <li><strong>Arrow Keys</strong> - Navigate between cards</li>
+                    <li><strong>Left/Right Arrow Keys</strong> - Navigate between cards</li>
+                    <li><strong>Up/Down Arrow Keys</strong> - Increment/decrement quantity</li>
                     <li><strong>Escape</strong> - Clear current input</li>
                 </ul>
             </div>
@@ -378,6 +379,22 @@ function setupKeyboardHandlers() {
                 if (currentCardIndex < cardData.length - 1) {
                     showCard(currentCardIndex + 1);
                 }
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                // Increment quantity by 1
+                const currentQty = parseInt(currentQuantity) || 0;
+                currentQuantity = (currentQty + 1).toString();
+                updateDisplays(currentQuantity, isFoil);
+                break;
+                
+            case 'ArrowDown':
+                e.preventDefault();
+                // Decrement quantity by 1, minimum 0
+                const currentQtyDown = parseInt(currentQuantity) || 0;
+                currentQuantity = Math.max(0, currentQtyDown - 1).toString();
+                updateDisplays(currentQuantity, isFoil);
                 break;
                 
             case 'Backspace':
