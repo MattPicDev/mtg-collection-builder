@@ -532,6 +532,14 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Updated README keyboard shortcuts section with detailed arrow key functionality
     - Improved rapid entry workflow with more intuitive quantity adjustment controls
 
+33. **"The recent change to pre-populate the collection in the Set and Rapid views is not working. Those views are always loading with 0 for every card."**
+    - Identified and fixed case sensitivity issue in collection key format
+    - Collection keys use Python boolean string format (_True/_False, not _true/_false)
+    - Updated set_view.html template logic to use correct capitalized boolean suffixes
+    - Fixed rapid_view.html regex patterns to match actual collection key format
+    - Verified pre-population now correctly displays existing quantities in both views
+    - Enhanced debugging process to identify Boolean string conversion behavior
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
