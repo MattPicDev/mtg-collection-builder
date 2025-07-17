@@ -131,19 +131,45 @@
 <script type="application/json" id="cardData">
 {{ cards | tojson }}
 </script>
+<script type="application/json" id="collectionData">
+{{ collection | tojson }}
+</script>
 {% endblock %}
 
 {% block scripts %}
 <script>
 const originalCardData = JSON.parse(document.getElementById('cardData').textContent);
+const existingCollection = JSON.parse(document.getElementById('collectionData').textContent);
 let cardData = [...originalCardData]; // Working copy for sorting
 let currentCardIndex = 0;
 let collectedData = {};
 let isProcessing = false;
 let currentSort = 'number'; // Default sort by card number
 
+// Initialize collectedData with existing collection quantities
+function initializeCollectedData() {
+    for (const [key, cardInfo] of Object.entries(existingCollection)) {
+        if (cardInfo.quantity > 0) {
+            // Extract card ID from the collection key (format: cardId_foil)
+            const cardId = key.replace(/_true$|_false$/, '');
+            if (!collectedData[cardId]) {
+                collectedData[cardId] = { quantity: 0, foil: false };
+            }
+            // If this is the foil version, set foil flag and quantity
+            if (key.endsWith('_true')) {
+                collectedData[cardId].foil = true;
+                collectedData[cardId].quantity = cardInfo.quantity;
+            } else if (key.endsWith('_false') && !collectedData[cardId].quantity) {
+                // Only set non-foil quantity if no foil quantity exists
+                collectedData[cardId].quantity = cardInfo.quantity;
+            }
+        }
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    initializeCollectedData(); // Load existing collection data
     sortCards('number'); // Apply default sort
     showCard(0);
     setupKeyboardHandlers();

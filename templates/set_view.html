@@ -158,11 +158,18 @@
                                 </p>
                                 
                                 <div class="d-flex align-items-center">
+                                    {% set regular_key = card.id ~ '_false' %}
+                                    {% set foil_key = card.id ~ '_true' %}
+                                    {% set regular_qty = collection.get(regular_key, {}).get('quantity', 0) %}
+                                    {% set foil_qty = collection.get(foil_key, {}).get('quantity', 0) %}
+                                    {% set has_foil = foil_qty > 0 %}
+                                    {% set display_qty = foil_qty if has_foil else regular_qty %}
+                                    
                                     <input type="number" 
                                            class="form-control quantity-input" 
                                            min="0" 
                                            max="99" 
-                                           value="0"
+                                           value="{{ display_qty }}"
                                            data-card-id="{{ card.id }}"
                                            onchange="updateProgress()"
                                            onkeyup="if(event.key === 'Enter') { this.nextElementSibling.nextElementSibling.focus() }">
@@ -171,7 +178,8 @@
                                         <input type="checkbox" 
                                                class="form-check-input" 
                                                data-card-id="{{ card.id }}"
-                                               data-foil="true"> 
+                                               data-foil="true"
+                                               {{ 'checked' if has_foil else '' }}> 
                                         <small>Foil</small>
                                     </label>
                                 </div>

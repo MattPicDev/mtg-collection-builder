@@ -1090,7 +1090,8 @@ def set_view(set_code: str):
                          cards=cards, 
                          set_info=set_info,
                          cache_stats=cache_stats,
-                         performance_stats=performance_stats)
+                         performance_stats=performance_stats,
+                         collection=collection_manager.collection)
 
 @app.route('/set/<set_code>/rapid')
 def set_rapid_view(set_code: str):
@@ -1119,7 +1120,8 @@ def set_rapid_view(set_code: str):
                          cards=cards, 
                          set_info=set_info,
                          cache_stats=cache_stats,
-                         performance_stats=performance_stats)
+                         performance_stats=performance_stats,
+                         collection=collection_manager.collection)
 
 @app.route('/api/add_card', methods=['POST'])
 def add_card():

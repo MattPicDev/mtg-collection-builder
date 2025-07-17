@@ -17,6 +17,7 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 ## Features
 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
+- **Quantity pre-population**: Input fields automatically show current collection quantities to prevent accidental overwrites
 - **Rapid input mode**: Keyboard-driven interface with improved UI layout and progress tracking
 - **Hybrid bulk cache system**: Dramatically faster imports with local card database (400x performance improvement)
 - **Performance optimization**: Cache hit rates >90% for faster collection imports and set browsing with critical lookup optimization
@@ -511,10 +512,21 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Improved import accuracy by removing redundant set codes and collector numbers from names
     - Maintained backward compatibility with existing import functionality
 
+31. **"When I add cards via the rapid view, is the number I enter replacing the existing count for that card, or adding to the existing count for that card?" followed by "In that case, the Set view and the Rapid view should pre-populate the card quantities in the entry boxes."**
+    - Clarified that rapid view and set view both replace existing quantities rather than adding to them
+    - Added collection data to both set_view and set_rapid_view route contexts
+    - Enhanced rapid_view.html with initializeCollectedData() function to pre-populate quantities
+    - Modified set_view.html template logic to show existing quantities and foil status in input fields
+    - Implemented smart quantity display logic (foil quantities take precedence over regular)
+    - Added automatic foil checkbox pre-selection based on existing collection data
+    - Improved user experience by preventing accidental quantity overwrites
+    - Enhanced transparency in quantity management workflow
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
-- **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting and pricing display
+- **Dual input modes**: Grid view and rapid keyboard-driven entry with consistent sorting, pricing display, and quantity pre-population
+- **Smart quantity management**: Automatic pre-population of existing quantities in both views to prevent accidental overwrites
 - **Advanced sorting capabilities**: Alphabetical and card number sorting with performance optimization in both views
 - **Real-time filtering**: Instant name-based card filtering with smart progress tracking
 - **Optimized UI layout**: Four-tier control structure with proper visual hierarchy and spacing
