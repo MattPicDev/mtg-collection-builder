@@ -158,8 +158,8 @@
                                 </p>
                                 
                                 <div class="d-flex align-items-center">
-                                    {% set regular_key = card.id ~ '_false' %}
-                                    {% set foil_key = card.id ~ '_true' %}
+                                    {% set regular_key = card.id ~ '_False' %}
+                                    {% set foil_key = card.id ~ '_True' %}
                                     {% set regular_qty = collection.get(regular_key, {}).get('quantity', 0) %}
                                     {% set foil_qty = collection.get(foil_key, {}).get('quantity', 0) %}
                                     {% set has_foil = foil_qty > 0 %}

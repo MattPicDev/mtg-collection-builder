@@ -152,15 +152,15 @@ function initializeCollectedData() {
     for (const [key, cardInfo] of Object.entries(existingCollection)) {
         if (cardInfo.quantity > 0) {
             // Extract card ID from the collection key (format: cardId_foil)
-            const cardId = key.replace(/_true$|_false$/, '');
+            const cardId = key.replace(/_True$|_False$/, '');
             if (!collectedData[cardId]) {
                 collectedData[cardId] = { quantity: 0, foil: false };
             }
             // If this is the foil version, set foil flag and quantity
-            if (key.endsWith('_true')) {
+            if (key.endsWith('_True')) {
                 collectedData[cardId].foil = true;
                 collectedData[cardId].quantity = cardInfo.quantity;
-            } else if (key.endsWith('_false') && !collectedData[cardId].quantity) {
+            } else if (key.endsWith('_False') && !collectedData[cardId].quantity) {
                 // Only set non-foil quantity if no foil quantity exists
                 collectedData[cardId].quantity = cardInfo.quantity;
             }
