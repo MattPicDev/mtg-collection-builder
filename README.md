@@ -42,7 +42,8 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Search and filter**: Quickly find specific sets or cards
 - **Foil tracking**: Track both regular and foil versions of cards with separate quantities and pricing
 - **Dual quantity CSV export**: Exports both regular and foil quantities as separate rows for complete collection representation
-- **Collection management**: Clear, replace, or merge collections
+- **Collection management**: Clear, replace, or merge collections with automatic cleanup
+- **Smart collection cleanup**: Cards automatically removed when all quantities are set to 0
 - **Performance optimized**: Fast sorting and smooth UI transitions
 - **Sortable collection table**: Click column headers to sort collection by any criteria with visual feedback
 - **Seamless navigation**: Clickable set links in Collection view that jump directly to specific cards in Set view with smooth scrolling and highlight effects
@@ -572,6 +573,15 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Links now properly navigate to `/set/{lowercase_set_code}#card-{card_id}` format
     - Resolves "set not found" errors and empty anchor fragments in Collection view links
     - Set links now work consistently between Sets view and Collection view navigation
+
+37. **"There's another bug. On the set view, if I decrement a card to 0, it does not remove that card from my collection. If I increment it, or decrement it to a value higher than 1, it works fine."**
+    - Fixed Set view not removing cards when both regular and foil quantities are set to 0
+    - Updated frontend saveCollection() to always send card data to backend, even for 0,0 quantities
+    - Enhanced backend update_card_quantities() to remove cards from collection when both quantities are 0
+    - Added same logic to add_card() method for consistency across all quantity update operations
+    - Cards now properly disappear from Collection view when all quantities are set to 0 in Set view
+    - Maintains clean collection state by automatically removing cards with no quantities
+    - Updated README documentation with collection cleanup functionality
 
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI

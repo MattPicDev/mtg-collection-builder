@@ -697,11 +697,23 @@ class CollectionManager:
         else:
             entry['quantity'] = quantity
         
+        # If both quantities are now 0, remove the card from collection
+        if entry['quantity'] == 0 and entry['foil_quantity'] == 0:
+            if card_id in self.collection:
+                del self.collection[card_id]
+            return
+        
         self.collection[card_id] = entry
     
     def update_card_quantities(self, card_data: Dict, regular_quantity: int = 0, foil_quantity: int = 0):
         """Update both regular and foil quantities for a card simultaneously."""
         card_id = card_data['id']
+        
+        # If both quantities are 0, remove the card from collection
+        if regular_quantity == 0 and foil_quantity == 0:
+            if card_id in self.collection:
+                del self.collection[card_id]
+            return
         
         # Get existing entry or create new one
         entry = self.collection.get(card_id, {

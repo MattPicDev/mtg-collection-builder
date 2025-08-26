@@ -323,25 +323,22 @@ function saveCollection() {
     const promises = [];
     
     cardQuantities.forEach((quantities, cardId) => {
-        // Only save if at least one quantity is > 0
-        if (quantities.regular > 0 || quantities.foil > 0) {
-            const card = cardData.find(c => c.id === cardId);
-            
-            if (card) {
-                promises.push(
-                    fetch('/api/update_card_quantities', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            card: card,
-                            regular_quantity: quantities.regular,
-                            foil_quantity: quantities.foil
-                        })
+        const card = cardData.find(c => c.id === cardId);
+        
+        if (card) {
+            promises.push(
+                fetch('/api/update_card_quantities', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        card: card,
+                        regular_quantity: quantities.regular,
+                        foil_quantity: quantities.foil
                     })
-                );
-            }
+                })
+            );
         }
     });
     
