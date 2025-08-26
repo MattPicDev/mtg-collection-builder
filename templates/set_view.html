@@ -128,7 +128,7 @@
     <div class="col-12">
         <div class="row" id="cardsContainer">
             {% for card in cards %}
-            <div class="col-md-6 col-lg-4 mb-4">
+            <div class="col-md-6 col-lg-4 mb-4" id="card-{{ card.id }}">
                 <div class="card">
                     <div class="row g-0">
                         <div class="col-4">
@@ -421,5 +421,28 @@ function updateFilteredProgress() {
 
 // Initialize progress
 updateProgress();
+
+// Handle scrolling to specific card if anchor is present in URL
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash) {
+        const cardId = window.location.hash.substring(1); // Remove the # symbol
+        const cardElement = document.getElementById(cardId);
+        if (cardElement) {
+            // Wait a moment for page to fully load, then scroll
+            setTimeout(function() {
+                cardElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+                // Add a subtle highlight effect
+                cardElement.style.transition = 'background-color 0.5s ease';
+                cardElement.style.backgroundColor = '#fff3cd';
+                setTimeout(function() {
+                    cardElement.style.backgroundColor = '';
+                }, 2000);
+            }, 500);
+        }
+    }
+});
 </script>
 {% endblock %}

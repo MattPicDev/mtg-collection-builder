@@ -143,8 +143,10 @@
                             </div>
                         </td>
                         <td>
-                            <span class="badge bg-secondary">{{ card.set }}</span><br>
-                            <small class="text-muted">{{ card.get('set_name', '') }}</small>
+                            <a href="/set/{{ card.set }}#card-{{ card.id }}" class="text-decoration-none set-link">
+                                <span class="badge bg-secondary">{{ card.set }}</span><br>
+                                <small class="text-muted">{{ card.get('set_name', '') }}</small>
+                            </a>
                         </td>
                         <td>{{ card.get('collector_number', '') }}</td>
                         <td>
@@ -366,6 +368,26 @@ document.addEventListener('DOMContentLoaded', function() {
 .sortable[data-column] .sort-icon.fa-sort-down {
     opacity: 1;
     color: #0d6efd;
+}
+
+.set-link {
+    display: block;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.set-link:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+    text-decoration: none !important;
+}
+
+.set-link:hover .badge {
+    background-color: #0d6efd !important;
+}
+
+.set-link:hover .text-muted {
+    color: #0d6efd !important;
 }
 </style>
 {% endblock %}
