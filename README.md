@@ -565,6 +565,14 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Maintains consistent navigation flow between Collection and Set views for seamless editing workflow
     - Updated README documentation to reflect improved Collection-to-Set navigation functionality
 
+36. **"This didn't work. The links go to an error page for 'set not found'. The set links from the Sets view still work. I don't know if it's because of the case sensitivity, or the card anchor in the URL. Also, the anchors links in the collection view are not populating. They all end in '#card-', rather than the card number."**
+    - Fixed set code case sensitivity by converting to lowercase with `|lower` filter in collection links
+    - Fixed missing card ID in anchor by using `key` variable instead of non-existent `card.id`
+    - Collection template uses `{% for key, card in collection.items() %}` where `key` is the card ID
+    - Links now properly navigate to `/set/{lowercase_set_code}#card-{card_id}` format
+    - Resolves "set not found" errors and empty anchor fragments in Collection view links
+    - Set links now work consistently between Sets view and Collection view navigation
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
