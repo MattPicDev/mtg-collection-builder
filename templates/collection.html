@@ -143,7 +143,7 @@
                             </div>
                         </td>
                         <td>
-                            <a href="/set/{{ card.set }}#card-{{ card.id }}" class="text-decoration-none set-link">
+                            <a href="/set/{{ card.set|lower }}#card-{{ key }}" class="text-decoration-none set-link">
                                 <span class="badge bg-secondary">{{ card.set }}</span><br>
                                 <small class="text-muted">{{ card.get('set_name', '') }}</small>
                             </a>
