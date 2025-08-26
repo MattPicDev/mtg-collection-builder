@@ -97,9 +97,9 @@
                             Number <i class="fas fa-sort sort-icon"></i>
                         </th>
                         <th class="sortable" data-column="quantity" style="cursor: pointer;">
-                            Quantity <i class="fas fa-sort sort-icon"></i>
+                            Regular <i class="fas fa-sort sort-icon"></i>
                         </th>
-                        <th class="sortable" data-column="foil" style="cursor: pointer;">
+                        <th class="sortable" data-column="foil_quantity" style="cursor: pointer;">
                             Foil <i class="fas fa-sort sort-icon"></i>
                         </th>
                         <th class="sortable" data-column="rarity" style="cursor: pointer;">
@@ -118,22 +118,25 @@
                 </thead>
                 <tbody id="collectionTableBody">
                     {% for key, card in collection.items() %}
-                    {% if card.quantity > 0 %}
+                    {% set regular_qty = card.get('quantity', 0) or 0 %}
+                    {% set foil_qty = card.get('foil_quantity', 0) or 0 %}
+                    {% if regular_qty > 0 or foil_qty > 0 %}
                     <tr class="collection-row" 
                         data-card-name="{{ card.name|lower }}" 
-                        data-set-name="{{ card.set_name|lower }}"
+                        data-set-name="{{ card.get('set_name', '')|lower }}"
                         data-name="{{ card.name }}"
                         data-set="{{ card.set }}"
-                        data-collector-number="{{ card.collector_number }}"
-                        data-quantity="{{ card.quantity }}"
-                        data-foil="{{ '1' if card.foil else '0' }}"
-                        data-rarity="{{ card.rarity }}"
-                        data-condition="{{ card.condition }}"
-                        data-price="{{ card.price_usd or '0' }}"
-                        data-total-value="{{ (card.price_usd|float * card.quantity) if card.price_usd else 0 }}">
+                        data-collector-number="{{ card.get('collector_number', '') }}"
+                        data-quantity="{{ regular_qty }}"
+                        data-foil-quantity="{{ foil_qty }}"
+                        data-rarity="{{ card.get('rarity', '') }}"
+                        data-condition="{{ card.get('condition', '') }}"
+                        data-price="{{ card.get('price_usd_regular', '0') }}"
+                        data-foil-price="{{ card.get('price_usd_foil', '0') }}"
+                        data-total-value="{{ ((card.get('price_usd_regular', 0)|float * regular_qty) + (card.get('price_usd_foil', 0)|float * foil_qty)) if (card.get('price_usd_regular') or card.get('price_usd_foil')) else 0 }}">
                         <td>
                             <div class="d-flex align-items-center">
-                                {% if card.image_url %}
+                                {% if card.get('image_url') %}
                                 <img src="{{ card.image_url }}" alt="{{ card.name }}" style="width: 40px; height: auto; margin-right: 10px; border-radius: 4px;">
                                 {% endif %}
                                 <strong>{{ card.name }}</strong>
@@ -141,47 +144,63 @@
                         </td>
                         <td>
                             <span class="badge bg-secondary">{{ card.set }}</span><br>
-                            <small class="text-muted">{{ card.set_name }}</small>
+                            <small class="text-muted">{{ card.get('set_name', '') }}</small>
                         </td>
-                        <td>{{ card.collector_number }}</td>
+                        <td>{{ card.get('collector_number', '') }}</td>
                         <td>
-                            <span class="badge bg-primary">{{ card.quantity }}</span>
+                            {% if regular_qty > 0 %}
+                            <span class="badge bg-primary">{{ regular_qty }}</span>
+                            {% else %}
+                            <span class="text-muted">0</span>
+                            {% endif %}
                         </td>
                         <td>
-                            {% if card.foil %}
+                            {% if foil_qty > 0 %}
                             <span class="badge bg-warning">
-                                <i class="fas fa-star"></i> Foil
+                                <i class="fas fa-star"></i> {{ foil_qty }}
                             </span>
                             {% else %}
-                            <span class="text-muted">Regular</span>
+                            <span class="text-muted">0</span>
                             {% endif %}
                         </td>
                         <td>
                             <span class="badge 
-                                {% if card.rarity == 'mythic' %}bg-danger
-                                {% elif card.rarity == 'rare' %}bg-warning
-                                {% elif card.rarity == 'uncommon' %}bg-info
+                                {% if card.get('rarity') == 'mythic' %}bg-danger
+                                {% elif card.get('rarity') == 'rare' %}bg-warning
+                                {% elif card.get('rarity') == 'uncommon' %}bg-info
                                 {% else %}bg-secondary
                                 {% endif %}">
-                                {{ card.rarity|title }}
+                                {{ card.get('rarity', 'Unknown')|title }}
                             </span>
                         </td>
-                        <td>{{ card.condition }}</td>
+                        <td>{{ card.get('condition', 'Near Mint') }}</td>
                         <td>
-                            {% if card.price_usd %}
+                            {% set reg_price = card.get('price_usd_regular') %}
+                            {% set foil_price = card.get('price_usd_foil') %}
+                            {% if reg_price and regular_qty > 0 %}
                             <span class="text-success">
-                                <i class="fas fa-dollar-sign"></i> {{ card.price_usd }}
+                                <i class="fas fa-dollar-sign"></i> {{ reg_price }}
                             </span>
-                            {% else %}
+                            {% endif %}
+                            {% if foil_price and foil_qty > 0 %}
+                            {% if reg_price and regular_qty > 0 %}<br>{% endif %}
+                            <span class="text-warning">
+                                <i class="fas fa-star"></i> ${{ foil_price }}
+                            </span>
+                            {% endif %}
+                            {% if (not reg_price or regular_qty == 0) and (not foil_price or foil_qty == 0) %}
                             <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if card.price_usd %}
+                            {% set reg_total = (reg_price|float * regular_qty) if reg_price and regular_qty > 0 else 0 %}
+                            {% set foil_total = (foil_price|float * foil_qty) if foil_price and foil_qty > 0 else 0 %}
+                            {% set grand_total = reg_total + foil_total %}
+                            {% if grand_total > 0 %}
                             <span class="text-success">
                                 <strong>
                                     <i class="fas fa-dollar-sign"></i> 
-                                    {{ "%.2f"|format(card.price_usd|float * card.quantity) }}
+                                    {{ "%.2f"|format(grand_total) }}
                                 </strong>
                             </span>
                             {% else %}
@@ -282,12 +301,9 @@ function sortTable(column) {
         let bVal = b.getAttribute(`data-${column.replace('_', '-')}`);
         
         // Handle different data types
-        if (column === 'quantity' || column === 'price' || column === 'total_value') {
+        if (column === 'quantity' || column === 'foil_quantity' || column === 'price' || column === 'total_value') {
             aVal = parseFloat(aVal) || 0;
             bVal = parseFloat(bVal) || 0;
-        } else if (column === 'foil') {
-            aVal = parseInt(aVal);
-            bVal = parseInt(bVal);
         } else {
             // String comparison (case-insensitive)
             aVal = aVal.toLowerCase();

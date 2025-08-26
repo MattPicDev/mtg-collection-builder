@@ -457,14 +457,6 @@ function setupKeyboardHandlers() {
     function saveCurrentCard() {
         // Data is already saved in collectedData through applyCurrentInput and arrow key handlers
         currentQuantityInput = '';
-        collectedData[card.id] = currentData;
-        updateQuantityDisplays(currentData.regular_quantity, currentData.foil_quantity);
-        updateProgress();
-    }
-    
-    function saveCurrentCard() {
-        // Data is already saved in collectedData through applyCurrentInput and arrow key handlers
-        currentQuantityInput = '';
     }
 }
 
