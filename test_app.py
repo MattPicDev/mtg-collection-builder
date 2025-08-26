@@ -187,31 +187,70 @@ class TestCollectionManager(unittest.TestCase):
         """Test adding a regular (non-foil) card"""
         self.manager.add_card(self.sample_card, 3, False)
         
-        key = f"{self.sample_card['id']}_False"
+        key = self.sample_card['id']
         self.assertIn(key, self.manager.collection)
         
         card_entry = self.manager.collection[key]
         self.assertEqual(card_entry['name'], 'Lightning Bolt')
         self.assertEqual(card_entry['quantity'], 3)
-        self.assertEqual(card_entry['foil'], False)
+        self.assertEqual(card_entry['foil_quantity'], 0)
         self.assertEqual(card_entry['set'], 'NEO')
     
     def test_add_card_foil(self):
         """Test adding a foil card"""
         self.manager.add_card(self.sample_card, 1, True)
         
-        key = f"{self.sample_card['id']}_True"
+        key = self.sample_card['id']
         self.assertIn(key, self.manager.collection)
         
         card_entry = self.manager.collection[key]
-        self.assertEqual(card_entry['foil'], True)
+        self.assertEqual(card_entry['quantity'], 0)
+        self.assertEqual(card_entry['foil_quantity'], 1)
+
+    def test_update_card_quantities(self):
+        """Test the new update_card_quantities method"""
+        # Add a card with both regular and foil quantities
+        self.manager.update_card_quantities(self.sample_card, 3, 2)
+        
+        key = self.sample_card['id']
+        self.assertIn(key, self.manager.collection)
+        
+        card_entry = self.manager.collection[key]
+        self.assertEqual(card_entry['quantity'], 3)
+        self.assertEqual(card_entry['foil_quantity'], 2)
+        
+        # Update quantities
+        self.manager.update_card_quantities(self.sample_card, 1, 5)
+        card_entry = self.manager.collection[key]
         self.assertEqual(card_entry['quantity'], 1)
+        self.assertEqual(card_entry['foil_quantity'], 5)
+
+    def test_remove_card_when_zero_quantities(self):
+        """Test that cards are removed when both quantities are set to 0"""
+        # Add a card first
+        self.manager.update_card_quantities(self.sample_card, 2, 1)
+        key = self.sample_card['id']
+        self.assertIn(key, self.manager.collection)
+        
+        # Set both quantities to 0
+        self.manager.update_card_quantities(self.sample_card, 0, 0)
+        self.assertNotIn(key, self.manager.collection)
+
+    def test_add_card_remove_when_zero(self):
+        """Test that add_card removes card when resulting in both quantities being 0"""
+        # Add a card with foil quantity
+        self.manager.add_card(self.sample_card, 1, True)
+        key = self.sample_card['id']
+        self.assertIn(key, self.manager.collection)
+        
+        # Set foil quantity to 0 (should remove card since regular is also 0)
+        self.manager.add_card(self.sample_card, 0, True)
+        self.assertNotIn(key, self.manager.collection)
     
     def test_export_to_csv(self):
         """Test CSV export functionality"""
-        # Add some cards to collection
-        self.manager.add_card(self.sample_card, 2, False)
-        self.manager.add_card(self.sample_card, 1, True)
+        # Add a card with both regular and foil quantities using update_card_quantities
+        self.manager.update_card_quantities(self.sample_card, 2, 1)
         
         csv_output = self.manager.export_to_csv()
         
@@ -325,19 +364,18 @@ class TestCollectionManager(unittest.TestCase):
     
     def test_get_collection_summary(self):
         """Test collection summary statistics"""
-        # Add multiple cards
-        self.manager.add_card(self.sample_card, 3, False)
-        self.manager.add_card(self.sample_card, 1, True)
+        # Add multiple cards using update_card_quantities for dual quantities
+        self.manager.update_card_quantities(self.sample_card, 3, 1)  # Lightning Bolt: 3 regular + 1 foil
         
         another_card = self.sample_card.copy()
         another_card['id'] = 'different-card'
         another_card['name'] = 'Counterspell'
-        self.manager.add_card(another_card, 2, False)
+        self.manager.add_card(another_card, 2, False)  # Counterspell: 2 regular
         
         summary = self.manager.get_collection_summary()
         
         self.assertEqual(summary['total_cards'], 6)  # 3 + 1 + 2
-        self.assertEqual(summary['unique_cards'], 3)  # 3 different entries
+        self.assertEqual(summary['unique_cards'], 2)  # 2 different card entries
         self.assertEqual(summary['sets_represented'], 1)  # All from NEO
     
     @patch('app.requests.get')
@@ -358,7 +396,12 @@ Lightning Bolt,neo,123,1,Yes,Near Mint,English"""
         self.assertTrue(result['success'])
         self.assertEqual(result['imported_count'], 2)
         self.assertEqual(len(result['errors']), 0)
-        self.assertEqual(len(self.manager.collection), 2)
+        self.assertEqual(len(self.manager.collection), 1)  # One card entry with both regular and foil quantities
+        
+        # Check that the card has both quantities
+        card_entry = self.manager.collection[self.sample_card['id']]
+        self.assertEqual(card_entry['quantity'], 2)      # Regular quantity
+        self.assertEqual(card_entry['foil_quantity'], 1)  # Foil quantity
     
     def test_import_from_csv_invalid_data(self):
         """Test CSV import with invalid data"""
@@ -868,8 +911,8 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(len(collection_manager.collection), 2)
         
         # Check that foil detection works
-        foil_cards = [card for card in collection_manager.collection.values() if card['foil']]
-        regular_cards = [card for card in collection_manager.collection.values() if not card['foil']]
+        foil_cards = [card for card in collection_manager.collection.values() if card['foil_quantity'] > 0]
+        regular_cards = [card for card in collection_manager.collection.values() if card['quantity'] > 0]
         
         self.assertEqual(len(foil_cards), 1)
         self.assertEqual(len(regular_cards), 1)

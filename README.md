@@ -583,6 +583,17 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Maintains clean collection state by automatically removing cards with no quantities
     - Updated README documentation with collection cleanup functionality
 
+38. **"The unit tests are failing. You should always check the unit tests, and update them or resolve the issues they find. Those changes should be part of the same commit as the functional changes and the README. Fix the outstanding issues now."**
+    - Updated all unit tests to work with new dual quantity data structure
+    - Fixed test expectations from old `card-id_True/False` keys to single `card-id` keys
+    - Updated tests to check `quantity` and `foil_quantity` fields instead of `foil` boolean
+    - Added comprehensive tests for new `update_card_quantities()` method
+    - Added tests for automatic card removal when both quantities are set to 0
+    - Fixed collection summary tests to reflect new single-entry-per-card structure
+    - Updated CSV import/export tests for dual quantity behavior
+    - All 46 unit tests now pass, ensuring code quality and regression prevention
+    - Established practice of including test updates in same commit as functional changes
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information
