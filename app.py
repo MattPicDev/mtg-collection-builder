@@ -658,34 +658,80 @@ class ScryfallAPI:
             return []
 
 class CollectionManager:
-    """Manages collection data and CSV export"""
+    """Manages collection data and CSV export with separate foil and regular quantities."""
     
     def __init__(self):
         self.collection = {}
     
     def add_card(self, card_data: Dict, quantity: int, foil: bool = False):
-        """Add a card to the collection"""
+        """Add or update a card in the collection.
+
+        This stores a single entry per card (keyed by card id) and keeps
+        separate counts for regular and foil quantities.
+
+        The method replaces the stored quantity for the given type (foil vs regular)
+        rather than adding to it, preserving the existing UX where input fields
+        set absolute values.
+        """
         card_id = card_data['id']
-        key = f"{card_id}_{foil}"
         
-        self.collection[key] = {
+        # Get existing entry or create new one
+        entry = self.collection.get(card_id, {
             'name': card_data['name'],
             'set': card_data['set'].upper(),
             'set_name': card_data['set_name'],
             'collector_number': card_data['collector_number'],
-            'quantity': quantity,
-            'foil': foil,
+            'quantity': 0,  # regular quantity
+            'foil_quantity': 0,  # foil quantity
             'condition': 'Near Mint',
             'language': 'English',
             'rarity': card_data['rarity'],
             'image_url': card_data.get('image_uris', {}).get('small', ''),
-            'price_usd': card_data.get('prices', {}).get('usd_foil' if foil else 'usd'),
             'price_usd_regular': card_data.get('prices', {}).get('usd'),
             'price_usd_foil': card_data.get('prices', {}).get('usd_foil')
-        }
+        })
+        
+        # Update the appropriate quantity field
+        if foil:
+            entry['foil_quantity'] = quantity
+        else:
+            entry['quantity'] = quantity
+        
+        self.collection[card_id] = entry
+    
+    def update_card_quantities(self, card_data: Dict, regular_quantity: int = 0, foil_quantity: int = 0):
+        """Update both regular and foil quantities for a card simultaneously."""
+        card_id = card_data['id']
+        
+        # Get existing entry or create new one
+        entry = self.collection.get(card_id, {
+            'name': card_data['name'],
+            'set': card_data['set'].upper(),
+            'set_name': card_data['set_name'],
+            'collector_number': card_data['collector_number'],
+            'quantity': 0,
+            'foil_quantity': 0,
+            'condition': 'Near Mint',
+            'language': 'English',
+            'rarity': card_data['rarity'],
+            'image_url': card_data.get('image_uris', {}).get('small', ''),
+            'price_usd_regular': card_data.get('prices', {}).get('usd'),
+            'price_usd_foil': card_data.get('prices', {}).get('usd_foil')
+        })
+        
+        # Update both quantities
+        entry['quantity'] = regular_quantity
+        entry['foil_quantity'] = foil_quantity
+        
+        self.collection[card_id] = entry
     
     def export_to_csv(self, format_type: str = 'mtggoldfish') -> str:
-        """Export collection to CSV format compatible with MTGGoldfish or DeckBox"""
+        """Export collection to CSV format compatible with MTGGoldfish or DeckBox.
+        
+        If both regular and foil quantities exist for a card, this will emit
+        two rows (one for regular, one for foil) so both are represented
+        in the exported file.
+        """
         output = io.StringIO()
         
         if format_type.lower() == 'deckbox':
@@ -696,22 +742,45 @@ class CollectionManager:
             writer.writeheader()
             
             for card in self.collection.values():
-                if card['quantity'] > 0:
+                reg_qty = card.get('quantity', 0) or 0
+                foil_qty = card.get('foil_quantity', 0) or 0
+                
+                # Export regular quantity if > 0
+                if reg_qty > 0:
                     writer.writerow({
-                        'Count': card['quantity'],
+                        'Count': reg_qty,
                         'Tradelist Count': '',
                         'Name': card['name'],
                         'Edition': card.get('set_name', card['set']),
                         'Card Number': card['collector_number'],
                         'Condition': card['condition'],
-                        'Foil': 'foil' if card['foil'] else '',
+                        'Foil': '',
                         'Signed': '',
                         'Artist Proof': '',
                         'Altered Art': '',
                         'Misprint': '',
                         'Promo': '',
                         'Textless': '',
-                        'My Price': card.get('price_usd', '')
+                        'My Price': card.get('price_usd_regular', '')
+                    })
+                
+                # Export foil quantity if > 0
+                if foil_qty > 0:
+                    writer.writerow({
+                        'Count': foil_qty,
+                        'Tradelist Count': '',
+                        'Name': card['name'],
+                        'Edition': card.get('set_name', card['set']),
+                        'Card Number': card['collector_number'],
+                        'Condition': card['condition'],
+                        'Foil': 'foil',
+                        'Signed': '',
+                        'Artist Proof': '',
+                        'Altered Art': '',
+                        'Misprint': '',
+                        'Promo': '',
+                        'Textless': '',
+                        'My Price': card.get('price_usd_foil', '')
                     })
         else:
             # MTGGoldfish format (default)
@@ -721,44 +790,87 @@ class CollectionManager:
             writer.writeheader()
             
             for card in self.collection.values():
-                if card['quantity'] > 0:
+                reg_qty = card.get('quantity', 0) or 0
+                foil_qty = card.get('foil_quantity', 0) or 0
+                
+                # Export regular quantity if > 0
+                if reg_qty > 0:
                     writer.writerow({
                         'Name': card['name'],
                         'Set': card['set'],
                         'Collector Number': card['collector_number'],
-                        'Quantity': card['quantity'],
-                        'Foil': 'Yes' if card['foil'] else 'No',
+                        'Quantity': reg_qty,
+                        'Foil': 'No',
                         'Condition': card['condition'],
                         'Language': card['language'],
-                        'Price USD': card.get('price_usd', '')
+                        'Price USD': card.get('price_usd_regular', '')
+                    })
+                
+                # Export foil quantity if > 0
+                if foil_qty > 0:
+                    writer.writerow({
+                        'Name': card['name'],
+                        'Set': card['set'],
+                        'Collector Number': card['collector_number'],
+                        'Quantity': foil_qty,
+                        'Foil': 'Yes',
+                        'Condition': card['condition'],
+                        'Language': card['language'],
+                        'Price USD': card.get('price_usd_foil', '')
                     })
         
         return output.getvalue()
     
     def get_collection_summary(self) -> Dict:
-        """Get summary statistics of the collection"""
-        total_cards = sum(card['quantity'] for card in self.collection.values())
-        total_unique = len([card for card in self.collection.values() if card['quantity'] > 0])
+        """Get summary statistics of the collection (counts include foil + regular)."""
+        total_cards = sum(((card.get('quantity', 0) or 0) + (card.get('foil_quantity', 0) or 0)) for card in self.collection.values())
+        total_unique = len([card for card in self.collection.values() if ((card.get('quantity', 0) or 0) + (card.get('foil_quantity', 0) or 0)) > 0])
         
         # Calculate total estimated value
         total_value = 0.0
         priced_cards = 0
         
         for card in self.collection.values():
-            if card['quantity'] > 0:
-                price_str = card.get('price_usd')
-                if price_str:
+            reg_qty = card.get('quantity', 0) or 0
+            foil_qty = card.get('foil_quantity', 0) or 0
+            
+            # Regular quantity value
+            if reg_qty > 0:
+                reg_price_str = card.get('price_usd_regular')
+                if reg_price_str:
                     try:
-                        price = float(price_str)
-                        total_value += price * card['quantity']
-                        priced_cards += 1
+                        reg_price = float(reg_price_str)
+                        total_value += reg_price * reg_qty
+                        if priced_cards == 0:  # Only count each card once for priced_cards
+                            priced_cards += 1
                     except (ValueError, TypeError):
                         pass
+            
+            # Foil quantity value
+            if foil_qty > 0:
+                foil_price_str = card.get('price_usd_foil')
+                if foil_price_str:
+                    try:
+                        foil_price = float(foil_price_str)
+                        total_value += foil_price * foil_qty
+                        if reg_qty == 0:  # Only count if we didn't already count for regular
+                            priced_cards += 1
+                    except (ValueError, TypeError):
+                        pass
+                elif reg_qty == 0:  # No foil price but has foil quantity, try regular price
+                    reg_price_str = card.get('price_usd_regular')
+                    if reg_price_str:
+                        try:
+                            reg_price = float(reg_price_str)
+                            total_value += reg_price * foil_qty  # Use regular price as fallback
+                            priced_cards += 1
+                        except (ValueError, TypeError):
+                            pass
         
         return {
             'total_cards': total_cards,
             'unique_cards': total_unique,
-            'sets_represented': len(set(card['set'] for card in self.collection.values() if card['quantity'] > 0)),
+            'sets_represented': len({card['set'] for card in self.collection.values() if ((card.get('quantity', 0) or 0) + (card.get('foil_quantity', 0) or 0)) > 0}),
             'total_value': total_value,
             'priced_cards': priced_cards
         }
@@ -846,25 +958,32 @@ class CollectionManager:
                             api_calls += 1
                     
                     if card_data:
-                        # Create collection entry
+                        # Create or update collection entry keyed by card id
                         card_id = card_data['id']
-                        key = f"{card_id}_{foil}"
                         
-                        self.collection[key] = {
+                        # Get existing entry or create new one
+                        entry = self.collection.get(card_id, {
                             'name': sanitized_name,
                             'set': card_data.get('set', set_code).upper(),
                             'set_name': card_data.get('set_name', ''),
                             'collector_number': collector_number,
-                            'quantity': quantity,
-                            'foil': foil,
+                            'quantity': 0,
+                            'foil_quantity': 0,
                             'condition': condition,
                             'language': language,
                             'rarity': card_data.get('rarity', 'unknown'),
                             'image_url': card_data.get('image_uris', {}).get('small', ''),
-                            'price_usd': card_data.get('prices', {}).get('usd_foil' if foil else 'usd'),
                             'price_usd_regular': card_data.get('prices', {}).get('usd'),
                             'price_usd_foil': card_data.get('prices', {}).get('usd_foil')
-                        }
+                        })
+                        
+                        # Update the appropriate quantity field
+                        if foil:
+                            entry['foil_quantity'] = quantity
+                        else:
+                            entry['quantity'] = quantity
+                        
+                        self.collection[card_id] = entry
                         imported_count += 1
                         
                         # Update progress with success
@@ -1125,10 +1244,28 @@ def set_rapid_view(set_code: str):
 
 @app.route('/api/add_card', methods=['POST'])
 def add_card():
-    """API endpoint to add a card to collection"""
+    """API endpoint to add a card to collection (legacy endpoint)"""
     data = request.json
     card_data = data.get('card')
     quantity = int(data.get('quantity', 0))
+    foil = data.get('foil', False)
+    
+    if quantity > 0:
+        collection_manager.add_card(card_data, quantity, foil)
+    
+    return jsonify({'status': 'success'})
+
+@app.route('/api/update_card_quantities', methods=['POST'])
+def update_card_quantities():
+    """API endpoint to update both regular and foil quantities for a card"""
+    data = request.json
+    card_data = data.get('card')
+    regular_quantity = int(data.get('regular_quantity', 0))
+    foil_quantity = int(data.get('foil_quantity', 0))
+    
+    collection_manager.update_card_quantities(card_data, regular_quantity, foil_quantity)
+    
+    return jsonify({'status': 'success'})
     foil = data.get('foil', False)
     
     if quantity > 0:

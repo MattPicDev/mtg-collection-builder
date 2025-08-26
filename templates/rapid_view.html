@@ -79,12 +79,12 @@
             <div class="alert alert-info">
                 <h6><i class="fas fa-keyboard"></i> Rapid Input Controls:</h6>
                 <ul class="mb-0">
-                    <li><strong>Type a number</strong> - Set quantity (automatically focused)</li>
-                    <li><strong>Space</strong> - Toggle foil status</li>
+                    <li><strong>Type a number</strong> - Set quantity for current type (Regular/Foil)</li>
+                    <li><strong>Space or Tab</strong> - Switch between Regular and Foil editing</li>
                     <li><strong>Enter</strong> - Save and move to next card</li>
                     <li><strong>Left/Right Arrow Keys</strong> - Navigate between cards</li>
-                    <li><strong>Up/Down Arrow Keys</strong> - Increment/decrement quantity</li>
-                    <li><strong>Escape</strong> - Clear current input</li>
+                    <li><strong>Up/Down Arrow Keys</strong> - Increment/decrement current quantity type</li>
+                    <li><strong>Escape</strong> - Clear current input and reset to saved values</li>
                 </ul>
             </div>
         </div>
@@ -149,21 +149,12 @@ let currentSort = 'number'; // Default sort by card number
 
 // Initialize collectedData with existing collection quantities
 function initializeCollectedData() {
-    for (const [key, cardInfo] of Object.entries(existingCollection)) {
-        if (cardInfo.quantity > 0) {
-            // Extract card ID from the collection key (format: cardId_foil)
-            const cardId = key.replace(/_True$|_False$/, '');
-            if (!collectedData[cardId]) {
-                collectedData[cardId] = { quantity: 0, foil: false };
-            }
-            // If this is the foil version, set foil flag and quantity
-            if (key.endsWith('_True')) {
-                collectedData[cardId].foil = true;
-                collectedData[cardId].quantity = cardInfo.quantity;
-            } else if (key.endsWith('_False') && !collectedData[cardId].quantity) {
-                // Only set non-foil quantity if no foil quantity exists
-                collectedData[cardId].quantity = cardInfo.quantity;
-            }
+    for (const [cardId, cardInfo] of Object.entries(existingCollection)) {
+        if ((cardInfo.quantity || 0) > 0 || (cardInfo.foil_quantity || 0) > 0) {
+            collectedData[cardId] = {
+                regular_quantity: cardInfo.quantity || 0,
+                foil_quantity: cardInfo.foil_quantity || 0
+            };
         }
     }
 }
@@ -222,7 +213,7 @@ function showCard(index) {
     
     currentCardIndex = index;
     const card = cardData[index];
-    const existingData = collectedData[card.id] || { quantity: 0, foil: false };
+    const existingData = collectedData[card.id] || { regular_quantity: 0, foil_quantity: 0 };
     
     const cardHtml = `
         <div class="row">
@@ -254,22 +245,30 @@ function showCard(index) {
                         <h5>Collection Entry</h5>
                         <div class="row align-items-center">
                             <div class="col-6">
-                                <label class="form-label">Quantity:</label>
+                                <label class="form-label">Regular:</label>
                                 <div class="input-group">
                                     <span class="input-group-text">×</span>
                                     <input type="number" class="form-control form-control-lg text-center" 
-                                           id="quantityDisplay" value="${existingData.quantity}" readonly 
-                                           style="font-size: 2rem; font-weight: bold;">
+                                           id="regularQuantityDisplay" value="${existingData.regular_quantity}" readonly 
+                                           style="font-size: 1.5rem; font-weight: bold;">
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="foilDisplay" 
-                                           ${existingData.foil ? 'checked' : ''} disabled>
-                                    <label class="form-check-label">
-                                        <i class="fas fa-star text-warning"></i> Foil
-                                    </label>
+                                <label class="form-label">Foil:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-star text-warning"></i></span>
+                                    <input type="number" class="form-control form-control-lg text-center" 
+                                           id="foilQuantityDisplay" value="${existingData.foil_quantity}" readonly 
+                                           style="font-size: 1.5rem; font-weight: bold;">
                                 </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    <strong>Editing:</strong> <span id="currentEditType">Regular</span> quantity
+                                    <br><strong>Press Tab to switch, Space to toggle edit type</strong>
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -283,10 +282,9 @@ function showCard(index) {
     updateNavigationButtons();
     focusInput();
     
-    // Update keyboard handler state for new card
-    if (window.updateCardState) {
-        window.updateCardState();
-    }
+    // Initialize the editing state
+    window.currentEditType = 'regular';
+    updateEditIndicator();
 }
 
 function getRarityBadgeClass(rarity) {
@@ -299,7 +297,10 @@ function getRarityBadgeClass(rarity) {
 }
 
 function updateProgress() {
-    const completed = Object.keys(collectedData).filter(id => collectedData[id].quantity > 0).length;
+    const completed = Object.keys(collectedData).filter(id => {
+        const data = collectedData[id];
+        return (data.regular_quantity || 0) > 0 || (data.foil_quantity || 0) > 0;
+    }).length;
     const total = cardData.length;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
     
@@ -312,19 +313,28 @@ function updateNavigationButtons() {
     document.getElementById('nextBtn').disabled = currentCardIndex === cardData.length - 1;
 }
 
+function updateEditIndicator() {
+    const indicator = document.getElementById('currentEditType');
+    if (indicator) {
+        indicator.textContent = window.currentEditType === 'regular' ? 'Regular' : 'Foil';
+        indicator.className = window.currentEditType === 'regular' ? 'text-primary' : 'text-warning';
+    }
+}
+
+function updateQuantityDisplays(regularQty, foilQty) {
+    const regularDisplay = document.getElementById('regularQuantityDisplay');
+    const foilDisplay = document.getElementById('foilQuantityDisplay');
+    
+    if (regularDisplay) regularDisplay.value = regularQty || 0;
+    if (foilDisplay) foilDisplay.value = foilQty || 0;
+}
+
 function setupKeyboardHandlers() {
     const rapidInput = document.getElementById('rapidInput');
-    let currentQuantity = '';
-    let isFoil = false;
+    let currentQuantityInput = '';
     
-    // Initialize state for current card
-    function initializeCardState() {
-        const card = cardData[currentCardIndex];
-        const existingData = collectedData[card.id] || { quantity: 0, foil: false };
-        currentQuantity = existingData.quantity > 0 ? existingData.quantity.toString() : '';
-        isFoil = existingData.foil;
-        updateDisplays(currentQuantity, isFoil);
-    }
+    // Initialize editing state
+    window.currentEditType = 'regular'; // 'regular' or 'foil'
     
     document.addEventListener('keydown', function(e) {
         if (isProcessing) return;
@@ -335,7 +345,7 @@ function setupKeyboardHandlers() {
         }
         
         const card = cardData[currentCardIndex];
-        const existingData = collectedData[card.id] || { quantity: 0, foil: false };
+        const existingData = collectedData[card.id] || { regular_quantity: 0, foil_quantity: 0 };
         
         switch(e.key) {
             case 'Enter':
@@ -353,16 +363,19 @@ function setupKeyboardHandlers() {
                 break;
                 
             case ' ':
+            case 'Tab':
                 e.preventDefault();
-                isFoil = !isFoil;
-                updateDisplays(currentQuantity, isFoil);
+                // Toggle between regular and foil editing
+                window.currentEditType = window.currentEditType === 'regular' ? 'foil' : 'regular';
+                currentQuantityInput = '';
+                updateEditIndicator();
                 break;
                 
             case 'Escape':
                 e.preventDefault();
-                currentQuantity = '';
-                isFoil = existingData.foil;
-                updateDisplays(currentQuantity, isFoil);
+                currentQuantityInput = '';
+                // Reset to existing values
+                updateQuantityDisplays(existingData.regular_quantity, existingData.foil_quantity);
                 break;
                 
             case 'ArrowLeft':
@@ -383,69 +396,76 @@ function setupKeyboardHandlers() {
                 
             case 'ArrowUp':
                 e.preventDefault();
-                // Increment quantity by 1
-                const currentQty = parseInt(currentQuantity) || 0;
-                currentQuantity = (currentQty + 1).toString();
-                updateDisplays(currentQuantity, isFoil);
+                // Increment current quantity type by 1
+                const currentData = collectedData[card.id] || { regular_quantity: 0, foil_quantity: 0 };
+                if (window.currentEditType === 'regular') {
+                    currentData.regular_quantity = (currentData.regular_quantity || 0) + 1;
+                } else {
+                    currentData.foil_quantity = (currentData.foil_quantity || 0) + 1;
+                }
+                collectedData[card.id] = currentData;
+                updateQuantityDisplays(currentData.regular_quantity, currentData.foil_quantity);
+                updateProgress();
                 break;
                 
             case 'ArrowDown':
                 e.preventDefault();
-                // Decrement quantity by 1, minimum 0
-                const currentQtyDown = parseInt(currentQuantity) || 0;
-                currentQuantity = Math.max(0, currentQtyDown - 1).toString();
-                updateDisplays(currentQuantity, isFoil);
+                // Decrement current quantity type by 1, minimum 0
+                const currentDataDown = collectedData[card.id] || { regular_quantity: 0, foil_quantity: 0 };
+                if (window.currentEditType === 'regular') {
+                    currentDataDown.regular_quantity = Math.max(0, (currentDataDown.regular_quantity || 0) - 1);
+                } else {
+                    currentDataDown.foil_quantity = Math.max(0, (currentDataDown.foil_quantity || 0) - 1);
+                }
+                collectedData[card.id] = currentDataDown;
+                updateQuantityDisplays(currentDataDown.regular_quantity, currentDataDown.foil_quantity);
+                updateProgress();
                 break;
                 
             case 'Backspace':
                 e.preventDefault();
-                currentQuantity = currentQuantity.slice(0, -1);
-                updateDisplays(currentQuantity, isFoil);
+                currentQuantityInput = currentQuantityInput.slice(0, -1);
+                applyCurrentInput();
                 break;
                 
             default:
                 if (e.key >= '0' && e.key <= '9') {
                     e.preventDefault();
-                    currentQuantity += e.key;
-                    updateDisplays(currentQuantity, isFoil);
+                    currentQuantityInput += e.key;
+                    applyCurrentInput();
                 }
                 break;
         }
     });
     
-    function updateDisplays(quantity, foil) {
-        document.getElementById('quantityDisplay').value = quantity || '0';
-        document.getElementById('foilDisplay').checked = foil;
+    function applyCurrentInput() {
+        const card = cardData[currentCardIndex];
+        const currentData = collectedData[card.id] || { regular_quantity: 0, foil_quantity: 0 };
+        const inputValue = parseInt(currentQuantityInput) || 0;
         
-        // Update visual feedback
-        const quantityInput = document.getElementById('quantityDisplay');
-        quantityInput.classList.toggle('border-primary', quantity !== '');
-        quantityInput.classList.toggle('text-primary', quantity !== '');
+        if (window.currentEditType === 'regular') {
+            currentData.regular_quantity = inputValue;
+        } else {
+            currentData.foil_quantity = inputValue;
+        }
+        
+        collectedData[card.id] = currentData;
+        updateQuantityDisplays(currentData.regular_quantity, currentData.foil_quantity);
+        updateProgress();
     }
     
     function saveCurrentCard() {
-        const card = cardData[currentCardIndex];
-        const quantity = parseInt(currentQuantity) || 0;
-        
-        collectedData[card.id] = {
-            quantity: quantity,
-            foil: isFoil
-        };
-        
+        // Data is already saved in collectedData through applyCurrentInput and arrow key handlers
+        currentQuantityInput = '';
+        collectedData[card.id] = currentData;
+        updateQuantityDisplays(currentData.regular_quantity, currentData.foil_quantity);
         updateProgress();
-        
-        // Reset for next card
-        currentQuantity = '';
-        isFoil = false;
     }
     
-    // Expose function to update state when card changes
-    window.updateCardState = function() {
-        initializeCardState();
-    };
-    
-    // Initialize for first card
-    initializeCardState();
+    function saveCurrentCard() {
+        // Data is already saved in collectedData through applyCurrentInput and arrow key handlers
+        currentQuantityInput = '';
+    }
 }
 
 function focusInput() {
@@ -474,19 +494,22 @@ function saveAndFinish() {
     
     for (const cardId in collectedData) {
         const data = collectedData[cardId];
-        if (data.quantity > 0) {
+        const regularQty = data.regular_quantity || 0;
+        const foilQty = data.foil_quantity || 0;
+        
+        if (regularQty > 0 || foilQty > 0) {
             const card = originalCardData.find(c => c.id === cardId);
             if (card) {
                 promises.push(
-                    fetch('/api/add_card', {
+                    fetch('/api/update_card_quantities', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
                             card: card,
-                            quantity: data.quantity,
-                            foil: data.foil
+                            regular_quantity: regularQty,
+                            foil_quantity: foilQty
                         })
                     })
                 );

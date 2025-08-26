@@ -17,8 +17,9 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 ## Features
 
 - **Set-by-set collection entry**: Browse MTG sets and quickly enter card quantities
+- **Dual quantity tracking**: Track both regular and foil quantities for each card simultaneously
 - **Quantity pre-population**: Input fields automatically show current collection quantities to prevent accidental overwrites
-- **Rapid input mode**: Keyboard-driven interface with improved UI layout and progress tracking
+- **Rapid input mode**: Keyboard-driven interface with dual quantity editing and improved UI layout
 - **Hybrid bulk cache system**: Dramatically faster imports with local card database (400x performance improvement)
 - **Performance optimization**: Cache hit rates >90% for faster collection imports and set browsing with critical lookup optimization
 - **Offline capability**: Works without internet after initial cache setup
@@ -39,7 +40,8 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Responsive web interface**: Works on desktop and mobile devices
 - **Real-time progress tracking**: See your progress as you add cards and detailed import progress with card-by-card updates
 - **Search and filter**: Quickly find specific sets or cards
-- **Foil tracking**: Track both regular and foil versions of cards with separate pricing
+- **Foil tracking**: Track both regular and foil versions of cards with separate quantities and pricing
+- **Dual quantity CSV export**: Exports both regular and foil quantities as separate rows for complete collection representation
 - **Collection management**: Clear, replace, or merge collections
 - **Performance optimized**: Fast sorting and smooth UI transitions
 - **Sortable collection table**: Click column headers to sort collection by any criteria with visual feedback
@@ -82,8 +84,8 @@ I have been extremely impressed with Copilot throughout this process.  It will m
    - **Rapid Mode**: Lightning-fast keyboard-driven entry with streamlined progress tracking and pricing display
 
 5. **Enter quantities** for each card you own:
-   - **Grid View**: Use the number inputs and foil checkboxes, see current market prices for each card, toggle sorting between card number and alphabetical order, use the name filter to quickly find specific cards
-   - **Rapid Mode**: Type numbers, press Space for foil, Enter to save and continue, view pricing information for each card, use sorting buttons to change card order
+   - **Grid View**: Use separate inputs for regular and foil quantities, see current market prices for each card, toggle sorting between card number and alphabetical order, use the name filter to quickly find specific cards
+   - **Rapid Mode**: Type numbers for current quantity type, press Space/Tab to switch between Regular and Foil, Enter to save and continue, view pricing information for each card, use sorting buttons to change card order
 
 6. **View collection value**: Your collection's estimated total value is calculated automatically based on current market prices
 
@@ -118,12 +120,12 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Search boxes**: Filter sets and collection in real-time
 
 ### Rapid Mode
-- **Type numbers**: Set quantity (automatically focused)
-- **Space**: Toggle foil status
+- **Type numbers**: Set quantity for current type (Regular or Foil)
+- **Space or Tab**: Switch between Regular and Foil quantity editing
 - **Enter**: Save current card and move to next
 - **Left/Right Arrow Keys**: Navigate between cards manually
-- **Up/Down Arrow Keys**: Increment/decrement quantity by 1
-- **Escape**: Clear current input
+- **Up/Down Arrow Keys**: Increment/decrement current quantity type by 1
+- **Escape**: Clear current input and reset to saved values
 - **Sorting buttons**: Change card order without affecting current position
 - **Ctrl+S**: Save entire collection and finish
 
@@ -566,8 +568,9 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
 - **Intuitive UI design** with streamlined layouts and reduced visual clutter
 - **Bidirectional format support** with round-trip compatibility for both import and export formats
 - **Advanced import features** with Server-Sent Events for real-time progress updates
+- **Dual quantity tracking system**: Simultaneous regular and foil quantity support with dedicated input fields and storage model redesign for complete collection accuracy
 
-The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, development workflow improvements, real-time pricing integration, and robust offline functionality with intelligent caching systems.
+The entire development process took place through natural language conversation, with the AI writing all code, creating templates, setting up the development environment, managing git commits, and implementing performance optimizations. No manual coding was required - everything was generated from the prompts above, including advanced features like client-side sorting, comprehensive testing, development workflow improvements, real-time pricing integration, robust offline functionality with intelligent caching systems, and the complete data model redesign for dual quantity support.
 
 ## Support
 

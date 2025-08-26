@@ -157,31 +157,36 @@
                                     </small>
                                 </p>
                                 
-                                <div class="d-flex align-items-center">
-                                    {% set regular_key = card.id ~ '_False' %}
-                                    {% set foil_key = card.id ~ '_True' %}
-                                    {% set regular_qty = collection.get(regular_key, {}).get('quantity', 0) %}
-                                    {% set foil_qty = collection.get(foil_key, {}).get('quantity', 0) %}
-                                    {% set has_foil = foil_qty > 0 %}
-                                    {% set display_qty = foil_qty if has_foil else regular_qty %}
+                                <div class="d-flex align-items-center gap-2">
+                                    {% set card_entry = collection.get(card.id, {}) %}
+                                    {% set regular_qty = card_entry.get('quantity', 0) or 0 %}
+                                    {% set foil_qty = card_entry.get('foil_quantity', 0) or 0 %}
                                     
-                                    <input type="number" 
-                                           class="form-control quantity-input" 
-                                           min="0" 
-                                           max="99" 
-                                           value="{{ display_qty }}"
-                                           data-card-id="{{ card.id }}"
-                                           onchange="updateProgress()"
-                                           onkeyup="if(event.key === 'Enter') { this.nextElementSibling.nextElementSibling.focus() }">
-                                    
-                                    <label class="foil-checkbox">
-                                        <input type="checkbox" 
-                                               class="form-check-input" 
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">Reg</span>
+                                        <input type="number" 
+                                               class="form-control quantity-input regular" 
+                                               min="0" 
+                                               max="99" 
+                                               value="{{ regular_qty }}"
                                                data-card-id="{{ card.id }}"
-                                               data-foil="true"
-                                               {{ 'checked' if has_foil else '' }}> 
-                                        <small>Foil</small>
-                                    </label>
+                                               data-quantity-type="regular"
+                                               onchange="updateProgress()"
+                                               style="width: 70px;">
+                                    </div>
+                                    
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">Foil</span>
+                                        <input type="number" 
+                                               class="form-control quantity-input foil" 
+                                               min="0" 
+                                               max="99" 
+                                               value="{{ foil_qty }}"
+                                               data-card-id="{{ card.id }}"
+                                               data-quantity-type="foil"
+                                               onchange="updateProgress()"
+                                               style="width: 70px;">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -205,15 +210,16 @@ let processedCards = 0;
 let currentSort = 'number'; // Default sort by card number
 
 function updateProgress() {
+    const cardIds = new Set();
     const inputs = document.querySelectorAll('.quantity-input');
-    processedCards = 0;
     
     inputs.forEach(input => {
         if (parseInt(input.value) > 0) {
-            processedCards++;
+            cardIds.add(input.getAttribute('data-card-id'));
         }
     });
     
+    processedCards = cardIds.size;
     const totalCards = cardData.length;
     const percentage = (processedCards / totalCards) * 100;
     
@@ -222,7 +228,7 @@ function updateProgress() {
 }
 
 function setAllQuantities(quantity) {
-    const inputs = document.querySelectorAll('.quantity-input');
+    const inputs = document.querySelectorAll('.quantity-input.regular');
     inputs.forEach(input => {
         input.value = quantity;
     });
@@ -297,37 +303,50 @@ function sortCards(sortType) {
 }
 
 function saveCollection() {
-    const inputs = document.querySelectorAll('.quantity-input');
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    const cardQuantities = new Map();
+    
+    // Collect all quantities by card ID
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        const cardId = input.getAttribute('data-card-id');
+        const quantityType = input.getAttribute('data-quantity-type');
+        const quantity = parseInt(input.value) || 0;
+        
+        if (!cardQuantities.has(cardId)) {
+            cardQuantities.set(cardId, { regular: 0, foil: 0 });
+        }
+        
+        cardQuantities.get(cardId)[quantityType] = quantity;
+    });
+    
     const promises = [];
     
-    inputs.forEach(input => {
-        const quantity = parseInt(input.value);
-        if (quantity > 0) {
-            const cardId = input.getAttribute('data-card-id');
+    cardQuantities.forEach((quantities, cardId) => {
+        // Only save if at least one quantity is > 0
+        if (quantities.regular > 0 || quantities.foil > 0) {
             const card = cardData.find(c => c.id === cardId);
-            
-            // Check for foil version
-            const foilCheckbox = document.querySelector(`input[type="checkbox"][data-card-id="${cardId}"]`);
-            const foil = foilCheckbox ? foilCheckbox.checked : false;
             
             if (card) {
                 promises.push(
-                    fetch('/api/add_card', {
+                    fetch('/api/update_card_quantities', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
                             card: card,
-                            quantity: quantity,
-                            foil: foil
+                            regular_quantity: quantities.regular,
+                            foil_quantity: quantities.foil
                         })
                     })
                 );
             }
         }
     });
+    
+    if (promises.length === 0) {
+        alert('No cards to save - please enter some quantities first.');
+        return;
+    }
     
     Promise.all(promises).then(() => {
         alert('Collection saved successfully!');
