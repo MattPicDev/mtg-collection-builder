@@ -141,3 +141,4 @@ mtg_collection.csv
 # Ignore local database cache
 # This file is used to cache data for faster access, but should not be version controlled.
 mtg_cache.db
+mtg_cache.db-journal
