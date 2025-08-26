@@ -45,6 +45,7 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Collection management**: Clear, replace, or merge collections
 - **Performance optimized**: Fast sorting and smooth UI transitions
 - **Sortable collection table**: Click column headers to sort collection by any criteria with visual feedback
+- **Seamless navigation**: Clickable set links in Collection view that jump directly to specific cards in Set view with smooth scrolling and highlight effects
 
 ## Installation
 
@@ -552,6 +553,17 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Added min/max validation (0-999) to all quantity number inputs
     - Maintained seamless integration between keyboard-driven and mouse-driven quantity entry
     - Updated README documentation and committed all spinner arrow functionality fixes
+
+35. **"Let's make a small improvement. On the Collection view, the set name and abbreviation in each row should be a link to the Set view for that set. If possible, the link should bring the card for that row into view, probably using an anchor." followed by "You forgot to update the README. You should update the readme after every functional change."**
+    - Made set names and abbreviations clickable links in Collection view table  
+    - Links navigate to Set view for the specific set with anchor to the exact card
+    - Added unique card IDs (`card-{{ card.id }}`) to Set view template for anchor targeting
+    - Implemented smooth scrolling to target card with 2-second highlight effect
+    - Added hover styling for set links with visual feedback and color transitions
+    - Enhanced user navigation: click any set name to jump directly to that card in Set view
+    - Includes automatic centering and temporary highlight animation when arriving at target card
+    - Maintains consistent navigation flow between Collection and Set views for seamless editing workflow
+    - Updated README documentation to reflect improved Collection-to-Set navigation functionality
 
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
