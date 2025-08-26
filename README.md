@@ -542,6 +542,17 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Verified pre-population now correctly displays existing quantities in both views
     - Enhanced debugging process to identify Boolean string conversion behavior
 
+34. **"There's a small bug. On the rapid view screen, the keyboard shortcuts work correctly, but the input spinner arrows next to the quantities do not change the quantity." followed by "You forgot to update the README and commit the files."**
+    - Fixed browser input spinner arrows not working in both Set View and Rapid View
+    - Added `oninput="updateProgress()"` handlers to Set View number inputs for immediate progress updates
+    - Removed `readonly` attribute from Rapid View number inputs to enable spinner functionality
+    - Added `handleQuantityChange()` function to sync direct input changes with keyboard shortcuts
+    - Enhanced `updateQuantityDisplays()` with proper value validation (0-999 range)
+    - Implemented dual input support: users can now use keyboard shortcuts OR spinner arrows/direct input
+    - Added min/max validation (0-999) to all quantity number inputs
+    - Maintained seamless integration between keyboard-driven and mouse-driven quantity entry
+    - Updated README documentation and committed all spinner arrow functionality fixes
+
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI
 - **Scryfall API integration** for real-time MTG card data with hybrid bulk cache system and pricing information

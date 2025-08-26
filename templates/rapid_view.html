@@ -249,7 +249,10 @@ function showCard(index) {
                                 <div class="input-group">
                                     <span class="input-group-text">×</span>
                                     <input type="number" class="form-control form-control-lg text-center" 
-                                           id="regularQuantityDisplay" value="${existingData.regular_quantity}" readonly 
+                                           id="regularQuantityDisplay" value="${existingData.regular_quantity}" 
+                                           min="0" max="999"
+                                           onchange="handleQuantityChange('regular', this.value)"
+                                           oninput="handleQuantityChange('regular', this.value)"
                                            style="font-size: 1.5rem; font-weight: bold;">
                                 </div>
                             </div>
@@ -258,7 +261,10 @@ function showCard(index) {
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-star text-warning"></i></span>
                                     <input type="number" class="form-control form-control-lg text-center" 
-                                           id="foilQuantityDisplay" value="${existingData.foil_quantity}" readonly 
+                                           id="foilQuantityDisplay" value="${existingData.foil_quantity}" 
+                                           min="0" max="999"
+                                           onchange="handleQuantityChange('foil', this.value)"
+                                           oninput="handleQuantityChange('foil', this.value)"
                                            style="font-size: 1.5rem; font-weight: bold;">
                                 </div>
                             </div>
@@ -321,12 +327,41 @@ function updateEditIndicator() {
     }
 }
 
+function handleQuantityChange(type, value) {
+    // Parse and validate the input
+    let quantity = parseInt(value) || 0;
+    if (quantity < 0) quantity = 0;
+    if (quantity > 999) quantity = 999;
+    
+    // Update the global variables
+    if (type === 'regular') {
+        currentQuantity = quantity;
+    } else {
+        currentFoilQuantity = quantity;
+    }
+    
+    // Update the display to ensure value is valid
+    updateQuantityDisplays(currentQuantity, currentFoilQuantity);
+    
+    // Mark card as needing save
+    pendingChanges = true;
+    
+    // Update collection tracking
+    if (currentCard) {
+        updateCollection(currentCard.id, currentQuantity, currentFoilQuantity);
+    }
+}
+
 function updateQuantityDisplays(regularQty, foilQty) {
     const regularDisplay = document.getElementById('regularQuantityDisplay');
     const foilDisplay = document.getElementById('foilQuantityDisplay');
     
-    if (regularDisplay) regularDisplay.value = regularQty || 0;
-    if (foilDisplay) foilDisplay.value = foilQty || 0;
+    // Ensure values are within valid range
+    regularQty = Math.max(0, Math.min(999, regularQty || 0));
+    foilQty = Math.max(0, Math.min(999, foilQty || 0));
+    
+    if (regularDisplay) regularDisplay.value = regularQty;
+    if (foilDisplay) foilDisplay.value = foilQty;
 }
 
 function setupKeyboardHandlers() {
