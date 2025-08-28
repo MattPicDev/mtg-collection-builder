@@ -363,20 +363,52 @@ class TestCollectionManager(unittest.TestCase):
         self.assertEqual(card['Foil'], 'No')
     
     def test_get_collection_summary(self):
-        """Test collection summary statistics"""
-        # Add multiple cards using update_card_quantities for dual quantities
-        self.manager.update_card_quantities(self.sample_card, 3, 1)  # Lightning Bolt: 3 regular + 1 foil
+        """Test collection summary statistics with bulk card filtering"""
+        # Create a valuable card (> $1)
+        valuable_card = self.sample_card.copy()
+        valuable_card['prices'] = {'usd': '5.50', 'usd_foil': '8.00'}
+        self.manager.update_card_quantities(valuable_card, 2, 1)  # 2 regular + 1 foil
         
-        another_card = self.sample_card.copy()
-        another_card['id'] = 'different-card'
-        another_card['name'] = 'Counterspell'
-        self.manager.add_card(another_card, 2, False)  # Counterspell: 2 regular
+        # Create a bulk card (< $1)
+        bulk_card = self.sample_card.copy()
+        bulk_card['id'] = 'bulk-card'
+        bulk_card['name'] = 'Bulk Common'
+        bulk_card['prices'] = {'usd': '0.25', 'usd_foil': '0.50'}
+        self.manager.update_card_quantities(bulk_card, 4, 2)  # 4 regular + 2 foil
         
         summary = self.manager.get_collection_summary()
         
-        self.assertEqual(summary['total_cards'], 6)  # 3 + 1 + 2
+        self.assertEqual(summary['total_cards'], 9)  # 2 + 1 + 4 + 2
         self.assertEqual(summary['unique_cards'], 2)  # 2 different card entries
         self.assertEqual(summary['sets_represented'], 1)  # All from NEO
+        
+        # Est. value should only include valuable cards: (2 * $5.50) + (1 * $8.00) = $19.00
+        # Bulk cards ($0.25 and $0.50) should be excluded
+        expected_value = (2 * 5.50) + (1 * 8.00)  # Only cards >= $1.00
+        self.assertAlmostEqual(summary['total_value'], expected_value, places=2)
+
+    def test_bulk_card_filtering(self):
+        """Test that cards under $1 are excluded from estimated value"""
+        # Add a card worth $0.50 (bulk)
+        bulk_card = self.sample_card.copy()
+        bulk_card['prices'] = {'usd': '0.50'}
+        self.manager.update_card_quantities(bulk_card, 10, 0)  # 10 copies
+        
+        # Add a card worth $1.50 (valuable)
+        valuable_card = self.sample_card.copy()
+        valuable_card['id'] = 'valuable-card'
+        valuable_card['prices'] = {'usd': '1.50'}
+        self.manager.update_card_quantities(valuable_card, 2, 0)  # 2 copies
+        
+        summary = self.manager.get_collection_summary()
+        
+        # Only the $1.50 card should contribute to estimated value
+        expected_value = 2 * 1.50  # $3.00
+        self.assertAlmostEqual(summary['total_value'], expected_value, places=2)
+        
+        # Both cards should still count for total cards and unique cards
+        self.assertEqual(summary['total_cards'], 12)  # 10 + 2
+        self.assertEqual(summary['unique_cards'], 2)
     
     @patch('app.requests.get')
     def test_import_from_csv_success(self, mock_get):

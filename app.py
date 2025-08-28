@@ -838,7 +838,7 @@ class CollectionManager:
         total_cards = sum(((card.get('quantity', 0) or 0) + (card.get('foil_quantity', 0) or 0)) for card in self.collection.values())
         total_unique = len([card for card in self.collection.values() if ((card.get('quantity', 0) or 0) + (card.get('foil_quantity', 0) or 0)) > 0])
         
-        # Calculate total estimated value
+        # Calculate total estimated value (excluding bulk cards < $1)
         total_value = 0.0
         priced_cards = 0
         
@@ -852,7 +852,9 @@ class CollectionManager:
                 if reg_price_str:
                     try:
                         reg_price = float(reg_price_str)
-                        total_value += reg_price * reg_qty
+                        # Only include cards worth $1 or more
+                        if reg_price >= 1.0:
+                            total_value += reg_price * reg_qty
                         if priced_cards == 0:  # Only count each card once for priced_cards
                             priced_cards += 1
                     except (ValueError, TypeError):
@@ -864,7 +866,9 @@ class CollectionManager:
                 if foil_price_str:
                     try:
                         foil_price = float(foil_price_str)
-                        total_value += foil_price * foil_qty
+                        # Only include cards worth $1 or more
+                        if foil_price >= 1.0:
+                            total_value += foil_price * foil_qty
                         if reg_qty == 0:  # Only count if we didn't already count for regular
                             priced_cards += 1
                     except (ValueError, TypeError):
@@ -874,7 +878,9 @@ class CollectionManager:
                     if reg_price_str:
                         try:
                             reg_price = float(reg_price_str)
-                            total_value += reg_price * foil_qty  # Use regular price as fallback
+                            # Only include cards worth $1 or more
+                            if reg_price >= 1.0:
+                                total_value += reg_price * foil_qty  # Use regular price as fallback
                             priced_cards += 1
                         except (ValueError, TypeError):
                             pass

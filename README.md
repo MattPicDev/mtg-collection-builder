@@ -34,7 +34,8 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Optimized performance**: Fast client-side sorting with DOM reordering for smooth user experience
 - **Scryfall API integration**: Automatically fetches card data, images, and pricing information
 - **Real-time pricing data**: Displays current USD market prices for both regular and foil cards
-- **Collection valuation**: Automatically calculates estimated total value of your collection
+- **Collection valuation**: Automatically calculates estimated total value of your collection with bulk card filtering (excludes cards < $1)
+- **Smart value calculation**: Estimated collection value focuses on valuable cards ($1+) while excluding bulk commons
 - **CSV export/import**: Compatible with MTGGoldfish, Deckbox, and other collection trackers with flexible format support including pricing data
 - **Collection import**: Upload existing CSV collections to quickly populate your data with real-time progress tracking
 - **Responsive web interface**: Works on desktop and mobile devices
@@ -593,6 +594,17 @@ This project was entirely generated using **Claude 3.5 Sonnet** (Anthropic) thro
     - Updated CSV import/export tests for dual quantity behavior
     - All 46 unit tests now pass, ensuring code quality and regression prevention
     - Established practice of including test updates in same commit as functional changes
+
+39. **"on the Collection page, the Estimated value should ignore bulk cards. Let's define 'bulk' as any card that's not worth at least $1 individually. So, that number should only include the sum of cards that are not worth $1 individually. as always, update tests and the readme, and include all of that in the same commit."**
+    - Modified collection estimated value calculation to exclude bulk cards (< $1 individually)
+    - Updated `get_collection_summary()` to apply $1.00 minimum threshold for both regular and foil cards
+    - Enhanced Collection view UI to indicate "$1+ only" and add tooltip explaining bulk exclusion
+    - Added comprehensive test coverage for bulk card filtering logic
+    - Updated existing collection summary tests to verify mixed-value card calculations
+    - Added dedicated `test_bulk_card_filtering()` test to ensure $0.50 cards excluded, $1.50+ included
+    - All 48 unit tests pass with new bulk filtering functionality
+    - Provides more accurate collection valuation by focusing on cards with meaningful market value
+    - Updated README with bulk filtering feature documentation and technical implementation details
 
 ### Key Features Developed
 - **Python Flask web application** with responsive Bootstrap UI

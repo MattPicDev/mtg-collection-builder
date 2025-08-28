@@ -41,11 +41,11 @@
             <div class="col-md-3">
                 <div class="card bg-warning text-white">
                     <div class="card-body">
-                        <h5 class="card-title">
+                        <h5 class="card-title" title="Estimated value excludes bulk cards (< $1 each)">
                             <i class="fas fa-dollar-sign"></i> Est. Value
                         </h5>
                         <h3>${{ "%.2f"|format(summary.total_value) }}</h3>
-                        <small>{{ summary.priced_cards }} cards priced</small>
+                        <small>{{ summary.priced_cards }} cards priced ($1+ only)</small>
                     </div>
                 </div>
             </div>
