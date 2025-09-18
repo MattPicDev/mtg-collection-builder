@@ -72,9 +72,19 @@
                         </a></li>
                     </ul>
                 </div>
-                <a href="/" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Add More Cards
-                </a>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-plus"></i> Add More Cards
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="/commander">
+                            <i class="fas fa-crown text-warning"></i> Add Commander Deck
+                        </a></li>
+                        <li><a class="dropdown-item" href="/">
+                            <i class="fas fa-search"></i> Browse Sets
+                        </a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -121,6 +131,19 @@
                     {% set regular_qty = card.get('quantity', 0) or 0 %}
                     {% set foil_qty = card.get('foil_quantity', 0) or 0 %}
                     {% if regular_qty > 0 or foil_qty > 0 %}
+                    {% set reg_price = card.get('price_usd_regular') %}
+                    {% set foil_price = card.get('price_usd_foil') %}
+                    {% set display_price = 0 %}
+                    {% if reg_price and regular_qty > 0 %}
+                        {% set display_price = reg_price|float %}
+                    {% endif %}
+                    {% if foil_price and foil_qty > 0 %}
+                        {% if display_price == 0 %}
+                            {% set display_price = foil_price|float %}
+                        {% else %}
+                            {% set display_price = [display_price, foil_price|float]|max %}
+                        {% endif %}
+                    {% endif %}
                     <tr class="collection-row" 
                         data-card-name="{{ card.name|lower }}" 
                         data-set-name="{{ card.get('set_name', '')|lower }}"
@@ -131,7 +154,7 @@
                         data-foil-quantity="{{ foil_qty }}"
                         data-rarity="{{ card.get('rarity', '') }}"
                         data-condition="{{ card.get('condition', '') }}"
-                        data-price="{{ card.get('price_usd_regular', '0') }}"
+                        data-price="{{ display_price }}"
                         data-foil-price="{{ card.get('price_usd_foil', '0') }}"
                         data-total-value="{{ ((card.get('price_usd_regular', 0)|float * regular_qty) + (card.get('price_usd_foil', 0)|float * foil_qty)) if (card.get('price_usd_regular') or card.get('price_usd_foil')) else 0 }}">
                         <td>
@@ -187,7 +210,7 @@
                             {% if foil_price and foil_qty > 0 %}
                             {% if reg_price and regular_qty > 0 %}<br>{% endif %}
                             <span class="text-warning">
-                                <i class="fas fa-star"></i> ${{ foil_price }}
+                                <i class="fas fa-dollar-sign"></i> {{ foil_price }}
                             </span>
                             {% endif %}
                             {% if (not reg_price or regular_qty == 0) and (not foil_price or foil_qty == 0) %}

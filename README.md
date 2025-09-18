@@ -48,6 +48,7 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 - **Performance optimized**: Fast sorting and smooth UI transitions
 - **Sortable collection table**: Click column headers to sort collection by any criteria with visual feedback
 - **Seamless navigation**: Clickable set links in Collection view that jump directly to specific cards in Set view with smooth scrolling and highlight effects
+- **Commander deck import**: Quick import of pre-constructed Commander decks from MTGGoldfish decklists with search, filter, and batch import functionality
 
 ## Installation
 
@@ -98,13 +99,22 @@ I have been extremely impressed with Copilot throughout this process.  It will m
    - Choose whether to replace or add to your existing collection
    - Pricing information will be automatically updated from current market data
 
-7. **Export to CSV** from the collection page when ready:
+7. **Import Commander decks** (optional):
+   - **Quick Start**: Use the Commander deck import option on the home page for instant access
+   - **From Collection**: Use the "Add Commander Deck" dropdown option in the Collection page
+   - **Browse Decks**: Navigate to the Commander section to browse available pre-constructed decks
+   - **Search & Filter**: Find specific decks by expansion or search terms
+   - **Import Process**: Click "Import to Collection" on any deck to add all cards to your collection
+   - **Progress Tracking**: Real-time import progress shows which cards are being added
+   - **Smart Integration**: Cards are automatically found in the database and added with proper quantities
+
+8. **Export to CSV** from the collection page when ready:
    - Choose MTGGoldfish format for compatibility with MTGGoldfish and similar sites
    - Choose DeckBox format for compatibility with DeckBox and similar sites
    - Both formats include current pricing information for your cards
    - Click any column header in the collection table to sort by that criteria
 
-8. **Collection Management**: 
+9. **Collection Management**: 
    - Sort your collection by clicking any column header (name, set, quantity, price, etc.)
    - Collection loads with cards sorted by price (highest first) by default
    - Price and total value columns default to descending order (highest first)
@@ -226,6 +236,38 @@ The tool implements a sophisticated hybrid approach that dramatically improves i
 - **UI integration**: Cache performance displayed in all views with visual indicators
 - **Pricing integration**: Real-time pricing data from Scryfall API with automatic updates
 
+## Commander Deck Import
+
+The Commander deck import feature provides a streamlined way to quickly add entire pre-constructed Commander decks to your collection.
+
+### Features
+- **MTGGoldfish Integration**: Scrapes Commander deck lists from MTGGoldfish.com articles
+- **Smart Deck Discovery**: Automatically finds and parses Commander precon articles
+- **Search & Filter**: Find specific decks by expansion name or search terms
+- **Multiple Access Points**: Available through Quick Start, Collection page, and dedicated Commander section
+- **Real-time Import**: Progress tracking shows which cards are being added to your collection
+- **Intelligent Matching**: Uses the hybrid cache system to quickly identify and add cards
+
+### How It Works
+1. **Article Scraping**: Searches MTGGoldfish for Commander deck list articles
+2. **Deck Parsing**: Extracts deck names, card lists, and quantities from structured tables
+3. **Card Matching**: Uses the local card database to find exact card matches
+4. **Collection Integration**: Adds cards directly to your collection with proper quantities
+5. **Progress Feedback**: Shows real-time import status with success/failure counts
+
+### Supported Deck Sources
+- **Commander Precons**: Official Wizards of the Coast Commander decks
+- **Popular Deck Lists**: Community-created Commander builds featured on MTGGoldfish
+- **Expansion Releases**: Decks associated with specific Magic expansions
+- **Search Results**: Any deck matching your search criteria
+
+### Technical Implementation
+- **BeautifulSoup4**: HTML parsing and web scraping of MTGGoldfish articles
+- **Smart ID Generation**: Unique deck identification system for caching and retrieval
+- **Error Handling**: Graceful handling of parsing errors and missing cards
+- **Performance Optimized**: Uses existing hybrid cache for fast card lookups
+- **User Experience**: Contextual hints and multiple discovery paths for different user workflows
+
 ## API Integration
 
 This tool uses the [Scryfall API](https://scryfall.com/docs/api) to fetch card data. The API is free and doesn't require authentication, but please be respectful of their rate limits.
@@ -245,6 +287,7 @@ The application is built with:
 - **Bootstrap 5**: Frontend CSS framework
 - **JavaScript**: Client-side interactivity
 - **Scryfall API**: Card data source
+- **BeautifulSoup4**: HTML parsing for Commander deck scraping
 
 ## Testing
 
@@ -252,6 +295,7 @@ The project includes comprehensive test coverage:
 - **Unit tests**: Core functionality and edge cases
 - **Integration tests**: API integration and data flow
 - **Performance tests**: Bulk cache system validation
+- **Commander tests**: MTGGoldfish API and route functionality
 - **UI tests**: Frontend component behavior
 
 Run the tests with:

@@ -1160,5 +1160,282 @@ Black Lotus,LEA,232,1,No,Near Mint,English'''
     # ...existing tests...
 
 
+class TestPreconDeckListAPI(unittest.TestCase):
+    """Test cases for PreconDeckList API functionality"""
+
+    def setUp(self):
+        self.app = app.test_client()
+        app.config['TESTING'] = True
+
+    @patch('app.requests.get')
+    def test_get_all_decks_success(self, mock_get):
+        """Test successful deck list retrieval from PreconDeckList"""
+        from app import PreconDeckListAPI
+        
+        # Mock HTML response with deck links
+        mock_html = '''
+        <html>
+            <body>
+                <a href="/deck/2024-dsk-miracleworker">Aminatou - Miracle Worker</a>
+                <a href="/deck/2024-dsk-endlesspunishment">Valgavoth - Endless Punishment</a>
+                <a href="/deck/2024-blb-raccoon">Bello - Animated Army</a>
+                <a href="/deck/2024-blb-bunny">Bumbleflower - Peace Offering</a>
+            </body>
+        </html>
+        '''
+        mock_response = MagicMock()
+        mock_response.content = mock_html.encode()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+        
+        with patch('app.BeautifulSoup') as mock_soup:
+            mock_parsed = MagicMock()
+            
+            # Create mock links
+            mock_links = []
+            test_decks = [
+                ("Aminatou - Miracle Worker", "/deck/2024-dsk-miracleworker"),
+                ("Valgavoth - Endless Punishment", "/deck/2024-dsk-endlesspunishment"),
+                ("Bello - Animated Army", "/deck/2024-blb-raccoon"),
+                ("Bumbleflower - Peace Offering", "/deck/2024-blb-bunny")
+            ]
+            
+            for text, href in test_decks:
+                mock_link = MagicMock()
+                mock_link.text.strip.return_value = text
+                mock_link.__getitem__.return_value = href
+                mock_link.text = text
+                mock_links.append(mock_link)
+            
+            mock_parsed.find_all.return_value = mock_links
+            mock_soup.return_value = mock_parsed
+            
+            expansions = PreconDeckListAPI.get_all_decks()
+            
+            # Should organize into 2 expansions: Duskmourn and Bloomburrow
+            self.assertEqual(len(expansions), 2)
+            
+            # Check that decks are properly organized by expansion
+            duskmourn_expansion = next((e for e in expansions if e['expansion'] == 'Duskmourn: House of Horror'), None)
+            bloomburrow_expansion = next((e for e in expansions if e['expansion'] == 'Bloomburrow'), None)
+            
+            self.assertIsNotNone(duskmourn_expansion)
+            self.assertIsNotNone(bloomburrow_expansion)
+            self.assertEqual(len(duskmourn_expansion['decks']), 2)
+            self.assertEqual(len(bloomburrow_expansion['decks']), 2)
+
+    @patch('app.requests.get')
+    def test_get_deck_details_success(self, mock_get):
+        """Test successful deck details retrieval"""
+        from app import PreconDeckListAPI
+        
+        # Mock HTML response with deck details
+        mock_html = '''
+        <html>
+            <head><title>Aminatou - Miracle Worker</title></head>
+            <body>
+                <a href="https://scryfall.com/search?q=Sol+Ring">Sol Ring</a>
+                <a href="https://scryfall.com/search?q=Command+Tower">Command Tower</a>
+                <a href="https://scryfall.com/search?q=Arcane+Signet">Arcane Signet</a>
+            </body>
+        </html>
+        '''
+        mock_response = MagicMock()
+        mock_response.content = mock_html.encode()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+        
+        with patch('app.BeautifulSoup') as mock_soup:
+            mock_parsed = MagicMock()
+            
+            # Mock title element
+            mock_title = MagicMock()
+            mock_title.get_text.return_value = "Aminatou - Miracle Worker"
+            mock_parsed.find.return_value = mock_title
+            
+            # Mock card links with proper parent elements
+            mock_links = []
+            card_names = ["Sol Ring", "Command Tower", "Arcane Signet"]
+            
+            for card_name in card_names:
+                mock_link = MagicMock()
+                mock_link.__getitem__.return_value = f"https://scryfall.com/search?q={card_name.replace(' ', '+')}"
+                mock_link.text.strip.return_value = card_name
+                mock_link.text = card_name
+                
+                # Mock parent element with proper get_text method
+                mock_parent = MagicMock()
+                mock_parent.get_text.return_value = f"1x {card_name}"  # Provide quantity pattern
+                mock_link.parent = mock_parent
+                
+                mock_links.append(mock_link)
+            
+            mock_parsed.find_all.return_value = mock_links
+            mock_soup.return_value = mock_parsed
+            
+            deck = PreconDeckListAPI.get_deck_details("2024-dsk-miracleworker")
+            
+            self.assertIsNotNone(deck)
+            self.assertEqual(deck['id'], "2024-dsk-miracleworker")
+            self.assertEqual(deck['name'], "Miracle Worker")
+            self.assertEqual(deck['commander'], "Aminatou")
+            self.assertEqual(len(deck['cards']), 3)
+            
+            # Check cards
+            card_names_result = [card['name'] for card in deck['cards']]
+            self.assertIn("Sol Ring", card_names_result)
+            self.assertIn("Command Tower", card_names_result)
+            self.assertIn("Arcane Signet", card_names_result)
+
+    def test_get_expansion_name(self):
+        """Test expansion code to name mapping"""
+        from app import PreconDeckListAPI
+        
+        # Test known mappings
+        self.assertEqual(PreconDeckListAPI._get_expansion_name("dsk", "2024"), "Duskmourn: House of Horror")
+        self.assertEqual(PreconDeckListAPI._get_expansion_name("blb", "2024"), "Bloomburrow")
+        self.assertEqual(PreconDeckListAPI._get_expansion_name("mh3", "2024"), "Modern Horizons 3")
+        
+        # Test unknown mapping
+        self.assertEqual(PreconDeckListAPI._get_expansion_name("xyz", "2024"), "Unknown Set (XYZ)")
+
+    @patch('app.PreconDeckListAPI.get_all_decks')
+    def test_search_decks(self, mock_get_all):
+        """Test deck search functionality"""
+        from app import PreconDeckListAPI
+        
+        # Mock expansion data
+        mock_get_all.return_value = [
+            {
+                'expansion': 'Duskmourn: House of Horror',
+                'decks': [
+                    {'name': 'Miracle Worker', 'commander': 'Aminatou', 'expansion': 'Duskmourn: House of Horror'},
+                    {'name': 'Endless Punishment', 'commander': 'Valgavoth', 'expansion': 'Duskmourn: House of Horror'}
+                ]
+            },
+            {
+                'expansion': 'Bloomburrow',
+                'decks': [
+                    {'name': 'Animated Army', 'commander': 'Bello', 'expansion': 'Bloomburrow'}
+                ]
+            }
+        ]
+        
+        # Test search by deck name
+        results = PreconDeckListAPI.search_decks("Miracle")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['name'], 'Miracle Worker')
+        
+        # Test search by commander name
+        results = PreconDeckListAPI.search_decks("Bello")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['commander'], 'Bello')
+        
+        # Test search by expansion
+        results = PreconDeckListAPI.search_decks("Duskmourn")
+        self.assertEqual(len(results), 2)
+
+
+class TestCommanderRoutes(unittest.TestCase):
+    """Test cases for Commander routes"""
+
+    def setUp(self):
+        self.app = app.test_client()
+        app.config['TESTING'] = True
+
+    @patch('app.PreconDeckListAPI.get_all_decks')
+    def test_commander_decks_route(self, mock_get_all):
+        """Test /commander route"""
+        mock_get_all.return_value = [
+            {
+                'title': 'Duskmourn: House of Horror Commander Decklists', 
+                'expansion': 'Duskmourn: House of Horror', 
+                'url': 'http://test.com',
+                'decks': []
+            }
+        ]
+        
+        response = self.app.get('/commander')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Commander Precon Decks', response.data)
+
+    @patch('app.PreconDeckListAPI.search_decks')
+    def test_commander_search_route(self, mock_search):
+        """Test /commander/search route"""
+        mock_search.return_value = [
+            {'name': 'Miracle Worker', 'id': 'deck1', 'commander': 'Aminatou'}
+        ]
+        
+        response = self.app.get('/commander/search?q=Miracle')
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.data)
+        self.assertEqual(len(data['decks']), 1)
+        self.assertEqual(data['decks'][0]['name'], 'Miracle Worker')
+
+    def test_commander_search_no_query(self):
+        """Test /commander/search route without query"""
+        response = self.app.get('/commander/search')
+        self.assertEqual(response.status_code, 400)
+
+    @patch('app.PreconDeckListAPI.get_deck_details')
+    def test_commander_deck_detail_route(self, mock_get_details):
+        """Test /commander/deck/<deck_id> route"""
+        mock_get_details.return_value = {
+            'id': 'deck123', 
+            'name': 'Miracle Worker', 
+            'commander': 'Aminatou',
+            'cards': [],
+            'total_price': 0.0,
+            'card_count': 0
+        }
+        
+        response = self.app.get('/commander/deck/deck123')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Miracle Worker', response.data)
+
+    @patch('app.PreconDeckListAPI.get_deck_details')
+    @patch('app.collection_manager._find_card_by_details_hybrid')
+    @patch('app.collection_manager.update_card_quantities')
+    def test_commander_import_route(self, mock_update_quantities, mock_find_card, mock_get_details):
+        """Test /api/commander/import route"""
+        mock_get_details.return_value = {
+            'id': 'deck123',
+            'name': 'Miracle Worker',
+            'cards': [
+                {'name': 'Sol Ring', 'quantity': 1, 'price': 0.0},
+                {'name': 'Command Tower', 'quantity': 1, 'price': 0.0}
+            ]
+        }
+        
+        # Mock card finding responses
+        mock_find_card.side_effect = [
+            {'id': 'sol_ring_id', 'name': 'Sol Ring'},
+            {'id': 'command_tower_id', 'name': 'Command Tower'}
+        ]
+        
+        # Mock successful updates
+        mock_update_quantities.return_value = None
+        
+        response = self.app.post('/api/commander/import', 
+                                 json={'deck_id': 'deck123'},
+                                 content_type='application/json')
+        
+        self.assertEqual(response.status_code, 200)
+        
+        data = json.loads(response.data)
+        self.assertTrue(data['success'])
+        self.assertEqual(data['imported'], 2)
+        self.assertEqual(data['skipped'], 0)
+
+    def test_commander_import_no_deck_id(self):
+        """Test /api/commander/import route without deck_id"""
+        response = self.app.post('/api/commander/import', 
+                                 json={},
+                                 content_type='application/json')
+        
+        self.assertEqual(response.status_code, 400)
+
+
 if __name__ == '__main__':
     unittest.main()

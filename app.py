@@ -12,6 +12,8 @@ import sqlite3
 from datetime import datetime, timedelta
 import hashlib
 import re
+from bs4 import BeautifulSoup
+import urllib.parse
 
 app = Flask(__name__)
 
@@ -656,6 +658,297 @@ class ScryfallAPI:
         except requests.RequestException as e:
             print(f"Error fetching cards for set {set_code}: {e}")
             return []
+
+class PreconDeckListAPI:
+    """Handles PreconDeckList.com Commander precon deck scraping and parsing."""
+    
+    BASE_URL = "https://www.precondecklist.com"
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    @staticmethod
+    def get_all_decks() -> List[Dict]:
+        """
+        Get all Commander precon decks from PreconDeckList.com.
+        
+        Returns:
+            List of deck metadata dictionaries organized by expansion
+        """
+        try:
+            response = requests.get(PreconDeckListAPI.BASE_URL, headers=PreconDeckListAPI.HEADERS, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            decks = []
+            
+            # Find all deck links on the main page
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                if href.startswith('/deck/') and link.text:
+                    deck_name = link.text.strip()
+                    if deck_name and '-' in deck_name:  # Format: "Commander - Deck Name"
+                        # Extract commander name and deck theme
+                        parts = deck_name.split(' - ', 1)
+                        if len(parts) == 2:
+                            commander_name = parts[0].strip()
+                            deck_theme = parts[1].strip()
+                            
+                            # Extract year and expansion from URL pattern
+                            # URLs typically look like: /deck/2024-dsk-miracleworker
+                            url_parts = href.split('/')[-1].split('-')
+                            if len(url_parts) >= 3:
+                                year = url_parts[0]
+                                expansion_code = url_parts[1]
+                                
+                                # Map expansion codes to full names
+                                expansion_name = PreconDeckListAPI._get_expansion_name(expansion_code, year)
+                                
+                                deck_id = href.split('/')[-1]  # Use the URL slug as ID
+                                full_url = PreconDeckListAPI.BASE_URL + href
+                                
+                                decks.append({
+                                    'id': deck_id,
+                                    'name': deck_theme,
+                                    'commander': commander_name,
+                                    'full_name': f"{commander_name} - {deck_theme}",
+                                    'expansion': expansion_name,
+                                    'expansion_code': expansion_code,
+                                    'year': year,
+                                    'url': full_url
+                                })
+            
+            # Group by expansion for better organization
+            expansion_groups = {}
+            for deck in decks:
+                exp_name = deck['expansion']
+                if exp_name not in expansion_groups:
+                    expansion_groups[exp_name] = []
+                expansion_groups[exp_name].append(deck)
+            
+            # Convert to list format expected by templates
+            organized_decks = []
+            for expansion, deck_list in expansion_groups.items():
+                # Get year from first deck in the expansion
+                year = deck_list[0]['year'] if deck_list else '2000'
+                organized_decks.append({
+                    'title': f"{expansion} Commander Decklists",
+                    'expansion': expansion,
+                    'decks': deck_list,
+                    'year': year,
+                    'url': deck_list[0]['url'] if deck_list else '#'  # Use first deck's URL as representative
+                })
+            
+            # Sort by year (newest first), then by expansion name as secondary
+            return sorted(organized_decks, key=lambda x: (int(x['year']), x['expansion']), reverse=True)
+            
+        except Exception as e:
+            print(f"Error fetching decks from PreconDeckList: {e}")
+            return []
+    
+    @staticmethod
+    def get_deck_details(deck_id: str) -> Dict:
+        """
+        Get detailed card list for a specific deck.
+        
+        Args:
+            deck_id: The deck ID (URL slug)
+            
+        Returns:
+            Deck dictionary with complete card list
+        """
+        try:
+            deck_url = f"{PreconDeckListAPI.BASE_URL}/deck/{deck_id}"
+            response = requests.get(deck_url, headers=PreconDeckListAPI.HEADERS, timeout=15)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Extract deck name and commander from page title
+            title_element = soup.find('title')
+            deck_name = "Unknown Deck"
+            commander_name = "Unknown Commander"
+            
+            if title_element:
+                page_title = title_element.get_text().strip()
+                # Typically format: "Commander - Deck Name"
+                if ' - ' in page_title:
+                    parts = page_title.split(' - ', 1)
+                    commander_name = parts[0].strip()
+                    deck_name = parts[1].strip()
+            
+            # Parse the card list
+            cards = PreconDeckListAPI._parse_deck_cards(soup)
+            
+            # Calculate total card count and estimated price
+            total_cards = sum(card['quantity'] for card in cards)
+            total_price = 0.0  # PreconDeckList doesn't typically show prices
+            
+            return {
+                'id': deck_id,
+                'name': deck_name,
+                'commander': commander_name,
+                'full_name': f"{commander_name} - {deck_name}",
+                'source_url': deck_url,
+                'cards': cards,
+                'card_count': total_cards,
+                'total_price': total_price
+            }
+            
+        except Exception as e:
+            print(f"Error fetching deck details for {deck_id}: {e}")
+            return None
+    
+    @staticmethod
+    def _parse_deck_cards(soup) -> List[Dict]:
+        """Parse card list from deck page HTML."""
+        cards = []
+        
+        try:
+            # Look for different card section patterns
+            # PreconDeckList typically organizes cards by type (Creatures, Instants, etc.)
+            
+            # Pattern 1: Look for card links with Scryfall references
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                if 'scryfall.com' in href and link.text:
+                    card_name = link.text.strip()
+                    if card_name and len(card_name) > 1:
+                        # Check if there's a quantity indicator nearby
+                        quantity = 1  # Default quantity
+                        
+                        # Look for quantity patterns in parent elements
+                        parent = link.parent
+                        if parent:
+                            parent_text = parent.get_text()
+                            # Look for patterns like "4x Card Name" or numbers at start of line
+                            import re
+                            quantity_match = re.search(r'(\d+)x?\s*' + re.escape(card_name), parent_text)
+                            if quantity_match:
+                                quantity = int(quantity_match.group(1))
+                        
+                        cards.append({
+                            'name': card_name,
+                            'quantity': quantity,
+                            'price': 0.0,  # PreconDeckList doesn't show prices
+                            'foil': False
+                        })
+            
+            # Remove duplicates (keep the first occurrence)
+            seen_cards = set()
+            unique_cards = []
+            for card in cards:
+                card_key = card['name'].lower()
+                if card_key not in seen_cards:
+                    seen_cards.add(card_key)
+                    unique_cards.append(card)
+            
+            return unique_cards
+            
+        except Exception as e:
+            print(f"Error parsing deck cards: {e}")
+            return []
+    
+    @staticmethod
+    def _get_expansion_name(expansion_code: str, year: str) -> str:
+        """Map expansion codes to full expansion names."""
+        expansion_map = {
+            # 2025
+            'eoc': 'Edge of Eternities',
+            'fic': 'Final Fantasy',
+            'tdm': 'Tarkir: Dragonstorm',
+            'dft': 'Aetherdrift',
+            
+            # 2024
+            'dsk': 'Duskmourn: House of Horror',
+            'blb': 'Bloomburrow',
+            'mh3': 'Modern Horizons 3',
+            'otj': 'Outlaws of Thunder Junction',
+            'pip': 'Fallout',
+            'mkm': 'Murders at Karlov Manor',
+            
+            # 2023
+            'lci': 'The Lost Caverns of Ixalan',
+            'who': 'Doctor Who',
+            'woe': 'Wilds of Eldraine',
+            'cmm': 'Commander Masters',
+            'ltr': 'The Lord of the Rings',
+            'mom': 'March of the Machine',
+            'one': 'Phyrexia: All Will Be One',
+            
+            # 2022
+            'bro': 'The Brothers\' War',
+            'scd': 'Streets of New Capenna',
+            '40k': 'Warhammer 40,000',
+            'dmu': 'Dominaria United',
+            'clb': 'Commander Legends: Battle for Baldur\'s Gate',
+            'snc': 'Streets of New Capenna',
+            'neo': 'Kamigawa: Neon Dynasty',
+            
+            # 2021
+            'vow': 'Innistrad: Crimson Vow',
+            'mid': 'Innistrad: Midnight Hunt',
+            'afr': 'Adventures in the Forgotten Realms',
+            'stx': 'Strixhaven: School of Mages',
+            'khm': 'Kaldheim',
+            
+            # 2020
+            'cmr': 'Commander Legends',
+            'znr': 'Zendikar Rising',
+            'iko': 'Ikoria: Lair of Behemoths',
+            
+            # 2019
+            'c19': 'Commander 2019',
+            
+            # 2018
+            'c18': 'Commander 2018',
+            
+            # 2017
+            'c17': 'Commander 2017',
+            
+            # 2016
+            'c16': 'Commander 2016',
+            
+            # 2015
+            'c15': 'Commander 2015',
+            
+            # 2014
+            'c14': 'Commander 2014',
+            
+            # 2013
+            'c13': 'Commander 2013',
+            
+            # 2011
+            'c11': 'Commander 2011'
+        }
+        
+        return expansion_map.get(expansion_code, f"Unknown Set ({expansion_code.upper()})")
+    
+    @staticmethod
+    def search_decks(query: str) -> List[Dict]:
+        """
+        Search for decks by name, commander, or expansion.
+        
+        Args:
+            query: Search query
+            
+        Returns:
+            List of matching decks
+        """
+        all_expansions = PreconDeckListAPI.get_all_decks()
+        matching_decks = []
+        
+        query_lower = query.lower()
+        
+        for expansion in all_expansions:
+            for deck in expansion['decks']:
+                # Search in deck name, commander name, and expansion name
+                if (query_lower in deck['name'].lower() or
+                    query_lower in deck['commander'].lower() or
+                    query_lower in deck['expansion'].lower()):
+                    matching_decks.append(deck)
+        
+        return matching_decks
 
 class CollectionManager:
     """Manages collection data and CSV export with separate foil and regular quantities."""
@@ -1566,6 +1859,107 @@ def cache_refresh_progress(refresh_id):
     response.headers['Connection'] = 'keep-alive'
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
+
+# Commander Deck Routes
+@app.route('/commander')
+def commander_decks():
+    """Browse Commander precon decks"""
+    try:
+        # Get all commander deck expansions from PreconDeckList
+        expansions = PreconDeckListAPI.get_all_decks()
+        return render_template('commander.html', articles=expansions)
+    except Exception as e:
+        print(f"Error loading commander decks: {e}")
+        return render_template('commander.html', articles=[], error="Unable to load Commander decks at this time.")
+
+@app.route('/commander/search')
+def commander_search():
+    """Search Commander decks by name or expansion"""
+    query = request.args.get('q', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'No search query provided'}), 400
+    
+    try:
+        # Search for decks matching the query
+        decks = PreconDeckListAPI.search_decks(query)
+        return jsonify({'decks': decks})
+    except Exception as e:
+        print(f"Error searching commander decks: {e}")
+        return jsonify({'error': 'Search failed'}), 500
+
+@app.route('/commander/deck/<deck_id>')
+def commander_deck_detail(deck_id: str):
+    """View specific Commander deck with import option"""
+    try:
+        # Get deck details from PreconDeckList
+        deck = PreconDeckListAPI.get_deck_details(deck_id)
+        
+        if not deck:
+            return "Commander deck not found", 404
+        
+        return render_template('commander_deck.html', deck=deck)
+    except Exception as e:
+        print(f"Error loading commander deck {deck_id}: {e}")
+        return "Error loading deck", 500
+
+@app.route('/api/commander/import', methods=['POST'])
+def import_commander_deck():
+    """Import a Commander deck to collection"""
+    try:
+        data = request.get_json()
+        deck_id = data.get('deck_id')
+        
+        if not deck_id:
+            return jsonify({'error': 'No deck ID provided'}), 400
+        
+        # Get deck details from PreconDeckList
+        deck = PreconDeckListAPI.get_deck_details(deck_id)
+        
+        if not deck:
+            return jsonify({'error': 'Deck not found'}), 404
+        
+        # Import cards to collection
+        imported_count = 0
+        skipped_count = 0
+        errors = []
+        
+        for card_data in deck['cards']:
+            try:
+                # Use CollectionManager to find card data by name
+                card_info = collection_manager._find_card_by_details_hybrid(
+                    card_data['name'], 
+                    '', # No specific set constraint for Commander cards
+                    ''  # No specific collector number
+                )
+                
+                if card_info:
+                    # Add to collection using existing CollectionManager
+                    collection_manager.update_card_quantities(
+                        card_info,  # card_data dict
+                        card_data['quantity'],  # regular quantity
+                        0  # foil quantity (precons are typically non-foil)
+                    )
+                    imported_count += 1
+                else:
+                    skipped_count += 1
+                    errors.append(f"Card not found: {card_data['name']}")
+                    
+            except Exception as e:
+                skipped_count += 1
+                errors.append(f"Error importing {card_data['name']}: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'imported': imported_count,
+            'skipped': skipped_count,
+            'errors': errors[:10],  # Limit error list
+            'deck_name': deck['name']
+        })
+        
+    except Exception as e:
+        print(f"Error importing commander deck: {e}")
+        return jsonify({'error': 'Import failed'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)

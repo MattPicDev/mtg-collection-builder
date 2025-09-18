@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Commander Deck{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/commander"><i class="fas fa-crown"></i> Commander Decks</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ deck.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="fas fa-crown text-warning"></i> {{ deck.name }}</h1>
+        <p class="lead">{{ deck.full_name }}</p>
+        <div class="row">
+            <div class="col-sm-6">
+                <strong>Cards:</strong> {{ deck.card_count }}
+            </div>
+            <div class="col-sm-6">
+                <strong>Total Value:</strong> ${{ "%.2f"|format(deck.total_price) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-success btn-lg" onclick="importDeck()" id="importBtn">
+            <i class="fas fa-download"></i> Import to Collection
+        </button>
+        <div class="mt-2">
+            <small class="text-muted">Add all {{ deck.card_count }} cards to your collection</small>
+        </div>
+    </div>
+</div>
+
+<!-- Import Progress -->
+<div id="importProgress" class="alert alert-info" style="display: none;">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-sync fa-spin"></i> <strong>Importing deck...</strong>
+        </div>
+    </div>
+    <div class="mt-2">
+        <div class="progress">
+            <div class="progress-bar" role="progressbar" style="width: 0%" id="importProgressBar"></div>
+        </div>
+        <small id="importProgressDetails" class="text-muted">Starting import...</small>
+    </div>
+</div>
+
+<!-- Import Results -->
+<div id="importResults" class="alert" style="display: none;">
+    <div id="importResultsContent"></div>
+</div>
+
+<!-- Deck Statistics -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">{{ deck.card_count }}</h5>
+                <p class="card-text">Total Cards</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">${{ "%.2f"|format(deck.total_price) }}</h5>
+                <p class="card-text">Estimated Value</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">{{ (deck.cards | selectattr('price', 'greaterthan', 1.0) | list | length) }}</h5>
+                <p class="card-text">Cards Over $1</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Card List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list"></i> Deck List</h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" onclick="sortCards('name')">Sort by Name</button>
+                    <button class="btn btn-outline-secondary" onclick="sortCards('price')">Sort by Price</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="cardTable">
+                        <thead>
+                            <tr>
+                                <th>Quantity</th>
+                                <th>Card Name</th>
+                                <th>Price</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for card in deck.cards %}
+                            <tr data-card-name="{{ card.name }}" data-card-price="{{ card.price }}">
+                                <td>
+                                    <span class="badge bg-primary">{{ card.quantity }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ card.name }}</strong>
+                                </td>
+                                <td>
+                                    {% if card.price > 0 %}
+                                        <span class="text-success">${{ "%.2f"|format(card.price) }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="searchCard('{{ card.name }}')">
+                                        <i class="fas fa-search"></i> Find
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Source Information -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Source Information</h6>
+                <p class="card-text">
+                    Data sourced from <a href="{{ deck.source_url }}" target="_blank" rel="noopener">MTGGoldfish</a>.
+                    Prices and availability may vary.
+                </p>
+                <small class="text-muted">
+                    Deck ID: {{ deck.id }}
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSortField = 'name';
+let currentSortOrder = 'asc';
+
+function importDeck() {
+    const importBtn = document.getElementById('importBtn');
+    const importProgress = document.getElementById('importProgress');
+    const importResults = document.getElementById('importResults');
+    
+    // Disable button and show progress
+    importBtn.disabled = true;
+    importBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Importing...';
+    importProgress.style.display = 'block';
+    importResults.style.display = 'none';
+    
+    // Simulate progress updates
+    let progress = 0;
+    const progressBar = document.getElementById('importProgressBar');
+    const progressDetails = document.getElementById('importProgressDetails');
+    
+    const progressInterval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress > 90) progress = 90;
+        
+        progressBar.style.width = progress + '%';
+        progressDetails.textContent = `Processing cards... ${Math.round(progress)}%`;
+    }, 200);
+    
+    // Make import request
+    fetch('/api/commander/import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            deck_id: '{{ deck.id }}'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressDetails.textContent = 'Import complete!';
+        
+        setTimeout(() => {
+            importProgress.style.display = 'none';
+            displayImportResults(data);
+            
+            // Reset button
+            importBtn.disabled = false;
+            importBtn.innerHTML = '<i class="fas fa-check"></i> Import Complete';
+            importBtn.classList.remove('btn-success');
+            importBtn.classList.add('btn-secondary');
+        }, 1000);
+    })
+    .catch(error => {
+        clearInterval(progressInterval);
+        console.error('Import error:', error);
+        
+        importProgress.style.display = 'none';
+        displayImportResults({
+            success: false,
+            error: 'Import failed. Please try again.'
+        });
+        
+        // Reset button
+        importBtn.disabled = false;
+        importBtn.innerHTML = '<i class="fas fa-download"></i> Import to Collection';
+    });
+}
+
+function displayImportResults(data) {
+    const resultsDiv = document.getElementById('importResults');
+    const resultsContent = document.getElementById('importResultsContent');
+    
+    if (data.success) {
+        resultsDiv.className = 'alert alert-success';
+        resultsContent.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-check-circle"></i> 
+                    <strong>Import successful!</strong>
+                </div>
+                <a href="/collection" class="btn btn-sm btn-outline-success">View Collection</a>
+            </div>
+            <div class="mt-2">
+                <small>
+                    Imported: ${data.imported} cards • 
+                    Skipped: ${data.skipped} cards
+                    ${data.errors && data.errors.length > 0 ? ` • ${data.errors.length} errors` : ''}
+                </small>
+            </div>
+            ${data.errors && data.errors.length > 0 ? `
+                <div class="mt-2">
+                    <details>
+                        <summary class="text-muted">View errors</summary>
+                        <ul class="mt-1 mb-0">
+                            ${data.errors.map(error => `<li class="small">${error}</li>`).join('')}
+                        </ul>
+                    </details>
+                </div>
+            ` : ''}
+        `;
+    } else {
+        resultsDiv.className = 'alert alert-danger';
+        resultsContent.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>Import failed:</strong> ${data.error || 'Unknown error occurred'}
+        `;
+    }
+    
+    resultsDiv.style.display = 'block';
+}
+
+function sortCards(field) {
+    const table = document.getElementById('cardTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Toggle sort order if same field
+    if (currentSortField === field) {
+        currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortField = field;
+        currentSortOrder = 'asc';
+    }
+    
+    rows.sort((a, b) => {
+        let aVal, bVal;
+        
+        if (field === 'name') {
+            aVal = a.dataset.cardName.toLowerCase();
+            bVal = b.dataset.cardName.toLowerCase();
+        } else if (field === 'price') {
+            aVal = parseFloat(a.dataset.cardPrice) || 0;
+            bVal = parseFloat(b.dataset.cardPrice) || 0;
+        }
+        
+        if (currentSortOrder === 'asc') {
+            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        } else {
+            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+        }
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function searchCard(cardName) {
+    // Open Scryfall search in new tab
+    const searchUrl = `https://scryfall.com/search?q=${encodeURIComponent(cardName)}`;
+    window.open(searchUrl, '_blank');
+}
+</script>
+{% endblock %}

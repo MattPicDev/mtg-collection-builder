@@ -8,6 +8,49 @@
     </div>
 </div>
 
+<!-- Quick Start Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-bolt text-primary"></i> Quick Start
+                </h5>
+                <p class="card-text text-muted">Choose how you want to build your collection:</p>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <a href="/commander" class="btn btn-primary btn-lg">
+                                <i class="fas fa-crown mb-2"></i><br>
+                                <strong>Add Commander Deck</strong><br>
+                                <small>Import complete precon decks</small>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <button class="btn btn-outline-primary btn-lg" onclick="document.getElementById('setSearch').focus(); document.getElementById('setSearch').scrollIntoView();">
+                                <i class="fas fa-search mb-2"></i><br>
+                                <strong>Browse Sets</strong><br>
+                                <small>Add cards set by set</small>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid">
+                            <a href="/collection" class="btn btn-outline-success btn-lg">
+                                <i class="fas fa-list mb-2"></i><br>
+                                <strong>View Collection</strong><br>
+                                <small>See what you already have</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-3">
     <div class="col-md-6 mb-3">
         <input type="text" id="setSearch" class="form-control" placeholder="Search sets by name or code..." onkeyup="filterSets()">
@@ -34,6 +77,24 @@
             <option value="2019">2019</option>
             <option value="older">2018 and older</option>
         </select>
+    </div>
+</div>
+
+<!-- Commander Hint (appears when commander filter is selected) -->
+<div class="row mb-3" id="commanderHint" style="display: none;">
+    <div class="col-12">
+        <div class="alert alert-primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-lightbulb"></i> 
+                    <strong>Tip:</strong> Looking for complete Commander precon decks? 
+                    You can import entire decklists with one click instead of adding cards individually.
+                </div>
+                <a href="/commander" class="btn btn-sm btn-primary">
+                    <i class="fas fa-crown"></i> Browse Precon Decks
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -99,6 +160,14 @@ function filterSets() {
     const yearFilter = document.getElementById('yearFilter').value;
     const setItems = document.querySelectorAll('.set-item');
     let visibleCount = 0;
+    
+    // Show/hide Commander hint based on filter selection
+    const commanderHint = document.getElementById('commanderHint');
+    if (typeFilter === 'commander') {
+        commanderHint.style.display = 'block';
+    } else {
+        commanderHint.style.display = 'none';
+    }
     
     setItems.forEach(item => {
         const setName = item.getAttribute('data-set-name');

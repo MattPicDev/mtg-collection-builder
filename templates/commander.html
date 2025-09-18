@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Commander Decks - MTG Collection Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1><i class="fas fa-crown text-warning"></i> Commander Precon Decks</h1>
+        <p class="lead">Browse and import complete preconstructed Commander decks from recent MTG releases</p>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    <div class="mt-2">
+        <a href="/" class="btn btn-secondary">Browse Sets Instead</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="input-group">
+            <input type="text" id="deckSearch" class="form-control" placeholder="Search by deck name or expansion..." onkeyup="searchDecks()" onkeypress="handleSearchKeypress(event)">
+            <button class="btn btn-outline-primary" type="button" onclick="searchDecks()">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <button class="btn btn-outline-secondary" onclick="clearSearch()">
+            <i class="fas fa-times"></i> Clear Search
+        </button>
+    </div>
+</div>
+
+<!-- Search Results -->
+<div id="searchResults" style="display: none;">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h4>Search Results</h4>
+            <div id="searchResultsList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Browse by Expansion -->
+<div id="expansionBrowse">
+    {% if articles %}
+    <div class="row">
+        <div class="col-12">
+            <h4>Browse by Expansion</h4>
+            <p class="text-muted">Select an expansion to view its Commander precon decks</p>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for article in articles %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 shadow-sm expansion-card" data-expansion="{{ article.expansion|lower }}">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-magic text-primary"></i> {{ article.expansion }}
+                    </h5>
+                    <p class="card-text">
+                        View {{ article.decks|length }} Commander precon deck{{ 's' if article.decks|length != 1 else '' }} from this expansion
+                    </p>
+                    <button class="btn btn-primary" onclick="loadExpansionDecks('{{ article.expansion }}')">
+                        <i class="fas fa-eye"></i> View {{ article.decks|length }} Deck{{ 's' if article.decks|length != 1 else '' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> No Commander deck expansions found. 
+        <a href="/" class="alert-link">Browse individual sets instead</a>.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Expansion Decks Display -->
+<div id="expansionDecks" style="display: none;">
+    <div class="row mb-3">
+        <div class="col-12">
+            <button class="btn btn-outline-secondary" onclick="backToExpansions()">
+                <i class="fas fa-arrow-left"></i> Back to Expansions
+            </button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <h4 id="expansionTitle"></h4>
+            <div id="expansionDecksList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="text-center" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading decks...</p>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentExpansion = null;
+
+function searchDecks() {
+    const query = document.getElementById('deckSearch').value.trim();
+    if (!query) {
+        clearSearch();
+        return;
+    }
+    
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('searchResults').style.display = 'none';
+    
+    fetch(`/commander/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            
+            if (data.error) {
+                displaySearchError('Search failed: ' + data.error);
+                return;
+            }
+            
+            displaySearchResults(data.decks);
+        })
+        .catch(error => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            console.error('Search error:', error);
+            displaySearchError('Search failed. Please try again.');
+        });
+}
+
+function displaySearchError(message) {
+    const resultsDiv = document.getElementById('searchResultsList');
+    const searchResultsSection = document.getElementById('searchResults');
+    
+    resultsDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ${message}</div>`;
+    searchResultsSection.style.display = 'block';
+    document.getElementById('expansionBrowse').style.display = 'none';
+    document.getElementById('expansionDecks').style.display = 'none';
+}
+
+function handleSearchKeypress(event) {
+    if (event.key === 'Enter') {
+        searchDecks();
+    }
+}
+
+function displaySearchResults(decks) {
+    const resultsDiv = document.getElementById('searchResultsList');
+    const searchResultsSection = document.getElementById('searchResults');
+    const expansionBrowse = document.getElementById('expansionBrowse');
+    const expansionDecks = document.getElementById('expansionDecks');
+    
+    if (decks.length === 0) {
+        resultsDiv.innerHTML = '<div class="alert alert-warning"><i class="fas fa-info-circle"></i> No decks found matching your search.</div>';
+    } else {
+        resultsDiv.innerHTML = decks.map(deck => `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="card-title">${deck.commander} - ${deck.name}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">${deck.expansion}</small>
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="/commander/deck/${deck.id}" class="btn btn-primary">
+                                <i class="fas fa-eye"></i> View Deck
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    searchResultsSection.style.display = 'block';
+    expansionBrowse.style.display = 'none';
+    expansionDecks.style.display = 'none';
+}
+
+function clearSearch() {
+    document.getElementById('deckSearch').value = '';
+    document.getElementById('searchResults').style.display = 'none';
+    document.getElementById('expansionBrowse').style.display = 'block';
+    document.getElementById('expansionDecks').style.display = 'none';
+}
+
+function loadExpansionDecks(expansionName) {
+    currentExpansion = expansionName;
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('expansionBrowse').style.display = 'none';
+    document.getElementById('expansionDecks').style.display = 'none';
+    
+    // Use search to get decks for this expansion
+    fetch('/commander/search?q=' + encodeURIComponent(expansionName))
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            
+            if (data.error) {
+                displayExpansionError('Failed to load decks: ' + data.error);
+                return;
+            }
+            
+            displayExpansionDecks(data.decks, expansionName);
+        })
+        .catch(error => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            console.error('Load error:', error);
+            displayExpansionError('Failed to load decks. Please try again.');
+        });
+}
+
+function displayExpansionError(message) {
+    const listElement = document.getElementById('expansionDecksList');
+    const expansionDecksSection = document.getElementById('expansionDecks');
+    
+    listElement.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ${message}</div>`;
+    expansionDecksSection.style.display = 'block';
+}
+
+function displayExpansionDecks(decks, expansionName) {
+    const titleElement = document.getElementById('expansionTitle');
+    const listElement = document.getElementById('expansionDecksList');
+    const expansionDecksSection = document.getElementById('expansionDecks');
+    
+    titleElement.textContent = `${expansionName} Commander Decks`;
+    
+    if (decks.length === 0) {
+        listElement.innerHTML = '<div class="alert alert-warning"><i class="fas fa-info-circle"></i> No decks found for this expansion.</div>';
+    } else {
+        listElement.innerHTML = `
+            <div class="row">
+                ${decks.map(deck => `
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">${deck.commander} - ${deck.name}</h5>
+                                <p class="card-text">
+                                    <small class="text-muted">${deck.expansion}</small>
+                                </p>
+                                <a href="/commander/deck/${deck.id}" class="btn btn-primary">
+                                    <i class="fas fa-eye"></i> View & Import
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    expansionDecksSection.style.display = 'block';
+}
+
+function backToExpansions() {
+    document.getElementById('expansionDecks').style.display = 'none';
+    document.getElementById('expansionBrowse').style.display = 'block';
+    currentExpansion = null;
+}
+</script>
+{% endblock %}
