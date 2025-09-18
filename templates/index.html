@@ -133,6 +133,17 @@
                         Type: {{ set.set_type|title|replace('_', ' ') }}<br>
                         Released: {{ set.released_at }}<br>
                         Cards: {{ set.card_count }}
+                        {% set owned_count = collection_stats.get(set.code.lower(), {}).get('owned', 0) %}
+                        {% if owned_count > 0 %}
+                        <br><span class="text-success">
+                            <i class="fas fa-check-circle"></i> 
+                            Owned: {{ owned_count }} ({{ "%.1f"|format((owned_count / set.card_count * 100) if set.card_count > 0 else 0) }}%)
+                        </span>
+                        {% else %}
+                        <br><span class="text-muted">
+                            <i class="fas fa-circle"></i> None owned
+                        </span>
+                        {% endif %}
                     </small>
                 </p>
                 <a href="/set/{{ set.code }}" class="btn btn-primary btn-sm">

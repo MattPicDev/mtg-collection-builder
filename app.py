@@ -1479,6 +1479,27 @@ class CollectionManager:
         normalized = set_identifier.lower().strip()
         return set_mappings.get(normalized, set_identifier.lower())
     
+    def get_collection_stats_by_set(self) -> Dict[str, Dict]:
+        """
+        Get collection statistics for all sets efficiently.
+        Returns a dictionary mapping set codes to stats: {count, total, percentage}
+        """
+        stats = {}
+        
+        # Group collection cards by set
+        for card in self.collection.values():
+            regular_qty = card.get('quantity', 0) or 0
+            foil_qty = card.get('foil_quantity', 0) or 0
+            
+            # Only count cards that are actually in collection (qty > 0)
+            if regular_qty > 0 or foil_qty > 0:
+                set_code = card['set'].lower()
+                if set_code not in stats:
+                    stats[set_code] = {'owned': 0}
+                stats[set_code]['owned'] += 1
+        
+        return stats
+    
     def clear_collection(self):
         """Clear the entire collection"""
         self.collection = {}
@@ -1491,7 +1512,11 @@ def index():
     """Main page - show set selection"""
     sets = ScryfallAPI.get_sets()
     cache_stats = bulk_cache.get_cache_stats()
-    return render_template('index.html', sets=sets, cache_stats=cache_stats)  # Show all filtered sets
+    
+    # Get collection statistics by set for display
+    collection_stats = collection_manager.get_collection_stats_by_set()
+    
+    return render_template('index.html', sets=sets, cache_stats=cache_stats, collection_stats=collection_stats)
 
 @app.route('/set/<set_code>')
 def set_view(set_code: str):
