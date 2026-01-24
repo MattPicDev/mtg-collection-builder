@@ -14,8 +14,9 @@
                             <h5 class="mb-0">
                                 {% if set_info.icon_svg_uri %}
                                 <img src="{{ set_info.icon_svg_uri }}" alt="{{ set_info.name }}" style="width: 24px; height: 24px; margin-right: 8px;">
-                                {% endif %}
+                                {% else %}
                                 {{ set_info.name }}
+                                {% endif %}
                             </h5>
                             <small class="text-muted">{{ set_info.code|upper }} - Rapid Input Mode</small>
                         </div>

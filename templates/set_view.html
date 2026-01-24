@@ -10,8 +10,9 @@
             <h2>
                 {% if set_info.icon_svg_uri %}
                 <img src="{{ set_info.icon_svg_uri }}" alt="{{ set_info.name }}" style="width: 32px; height: 32px; margin-right: 10px;">
-                {% endif %}
+                {% else %}
                 {{ set_info.name }}
+                {% endif %}
                 <small class="text-muted">({{ set_info.code|upper }})</small>
             </h2>
         </div>
