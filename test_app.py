@@ -5,7 +5,7 @@ import io
 import csv
 import requests
 from flask import Flask
-from app import app, ScryfallAPI, CollectionManager, collection_manager, sanitize_card_name
+from app import app, ScryfallAPI, CollectionManager, collection_manager, sanitize_card_name, BulkDataCache
 
 
 class TestCardNameSanitization(unittest.TestCase):
@@ -51,6 +51,27 @@ class TestCardNameSanitization(unittest.TestCase):
 
 class TestScryfallAPI(unittest.TestCase):
     """Test cases for ScryfallAPI class"""
+
+    @patch('app.requests.get')
+    def test_get_bulk_data_info_uses_scryfall_headers(self, mock_get):
+        """Test that bulk data requests use the headers required by Scryfall."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {'data': [{'type': 'default_cards'}]}
+        mock_get.return_value = mock_response
+
+        cache = BulkDataCache(db_path=':memory:')
+        result = cache.get_bulk_data_info()
+
+        self.assertEqual(result['type'], 'default_cards')
+        mock_get.assert_called_once_with(
+            'https://api.scryfall.com/bulk-data',
+            headers={
+                'User-Agent': 'mtg-collection-builder/1.0 (+https://github.com/MattPicDev/mtg-collection-builder)',
+                'Accept': 'application/json'
+            },
+            timeout=30
+        )
     
     @patch('app.bulk_cache')
     @patch('app.requests.get')

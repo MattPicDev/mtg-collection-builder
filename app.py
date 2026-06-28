@@ -131,7 +131,14 @@ class BulkDataCache:
     def get_bulk_data_info(self) -> Optional[Dict]:
         """Get bulk data download information from Scryfall"""
         try:
-            response = requests.get(f"{ScryfallAPI.BASE_URL}/bulk-data")
+            response = requests.get(
+                f"{ScryfallAPI.BASE_URL}/bulk-data",
+                headers={
+                    'User-Agent': 'mtg-collection-builder/1.0 (+https://github.com/MattPicDev/mtg-collection-builder)',
+                    'Accept': 'application/json'
+                },
+                timeout=30
+            )
             response.raise_for_status()
             data = response.json()
             if not isinstance(data, dict):
@@ -178,7 +185,15 @@ class BulkDataCache:
                 })
             
             # Download bulk data
-            response = requests.get(bulk_info['download_uri'], stream=True)
+            response = requests.get(
+                bulk_info['download_uri'],
+                stream=True,
+                headers={
+                    'User-Agent': 'mtg-collection-builder/1.0 (+https://github.com/MattPicDev/mtg-collection-builder)',
+                    'Accept': 'application/json'
+                },
+                timeout=60
+            )
             response.raise_for_status()
             
             # Parse JSON incrementally
@@ -1365,7 +1380,12 @@ class CollectionManager:
             # First try exact search with collector number
             if collector_number and set_code:
                 response = requests.get(
-                    f"{ScryfallAPI.BASE_URL}/cards/{set_code}/{collector_number}"
+                    f"{ScryfallAPI.BASE_URL}/cards/{set_code}/{collector_number}",
+                    headers={
+                        'User-Agent': 'mtg-collection-builder/1.0 (+https://github.com/MattPicDev/mtg-collection-builder)',
+                        'Accept': 'application/json'
+                    },
+                    timeout=30
                 )
                 if response.status_code == 200:
                     card_data = response.json()
@@ -1380,7 +1400,12 @@ class CollectionManager:
                     params={
                         'exact': name,
                         'set': set_code
-                    }
+                    },
+                    headers={
+                        'User-Agent': 'mtg-collection-builder/1.0 (+https://github.com/MattPicDev/mtg-collection-builder)',
+                        'Accept': 'application/json'
+                    },
+                    timeout=30
                 )
                 if response.status_code == 200:
                     return response.json()
@@ -1391,7 +1416,12 @@ class CollectionManager:
                     params={
                         'fuzzy': name,
                         'set': set_code
-                    }
+                    },
+                    headers={
+                        'User-Agent': 'mtg-collection-builder/1.0 (+https://github.com/MattPicDev/mtg-collection-builder)',
+                        'Accept': 'application/json'
+                    },
+                    timeout=30
                 )
                 if response.status_code == 200:
                     return response.json()
@@ -1401,7 +1431,12 @@ class CollectionManager:
                 f"{ScryfallAPI.BASE_URL}/cards/search",
                 params={
                     'q': f'"{name}" set:"{set_identifier}"'
-                }
+                },
+                headers={
+                    'User-Agent': 'mtg-collection-builder/1.0 (+https://github.com/MattPicDev/mtg-collection-builder)',
+                    'Accept': 'application/json'
+                },
+                timeout=30
             )
             if response.status_code == 200:
                 search_data = response.json()
