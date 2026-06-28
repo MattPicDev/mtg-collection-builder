@@ -134,14 +134,16 @@ class BulkDataCache:
             response = requests.get(f"{ScryfallAPI.BASE_URL}/bulk-data")
             response.raise_for_status()
             data = response.json()
+            if not isinstance(data, dict):
+                return None
             
             # Find the default cards bulk data
-            for bulk_data in data['data']:
-                if bulk_data['type'] == 'default_cards':
+            for bulk_data in data.get('data', []):
+                if isinstance(bulk_data, dict) and bulk_data.get('type') == 'default_cards':
                     return bulk_data
             
             return None
-        except requests.RequestException as e:
+        except (requests.RequestException, ValueError, KeyError, TypeError) as e:
             print(f"Error fetching bulk data info: {e}")
             return None
     
@@ -1205,8 +1207,11 @@ class CollectionManager:
                         'message': 'Updating card database for faster imports...'
                     })
                 
-                # Download bulk data in background
-                bulk_cache.download_and_cache_bulk_data(progress_callback)
+                # Download bulk data in background; failures here should not abort CSV import
+                try:
+                    bulk_cache.download_and_cache_bulk_data(progress_callback)
+                except Exception:
+                    pass
             
             # Parse CSV content
             csv_file = io.StringIO(csv_content)

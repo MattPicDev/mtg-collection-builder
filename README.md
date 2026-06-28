@@ -55,7 +55,7 @@ I have been extremely impressed with Copilot throughout this process.  It will m
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
-   cd mtg-tool
+   cd mtg-collection-builder
    ```
 
 2. **Create a virtual environment**:
